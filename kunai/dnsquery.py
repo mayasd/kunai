@@ -10,15 +10,15 @@ class DNSQuery:
    def __init__(self, data):
       self.data = data
       self.domain = ''
-    
+      
       t = (ord(data[2]) >> 3) & 15   # Opcode bits
       if t == 0:                     # Standard query
-        ini = 12
-        lon = ord(data[ini])
-        while lon != 0:
-          self.domain += data[ini+1:ini+lon+1]+'.'
-          ini += lon+1
-          lon = ord(data[ini])
+         ini = 12
+         lon = ord(data[ini])
+         while lon != 0:
+            self.domain += data[ini+1:ini+lon+1]+'.'
+            ini += lon+1
+            lon = ord(data[ini])
 
       
    def _get_size_hex(self, nb):
@@ -30,6 +30,7 @@ class DNSQuery:
     
    # We look in the nodes for the good tag
    def lookup_for_nodes(self, nodes):
+      print "LOOKING FOR"*10, self.domain
       if not self.domain.endswith('.kunai.'):
           return []
       tag = self.domain[:-len('.kunai.')]
@@ -74,5 +75,6 @@ class DNSQuery:
             packet += '\x00\x01\x00\x01\x00\x00\x00\x3c\x00\x04' # Response type, ttl and resource data length -> 4 bytes
             packet += str.join('',map(lambda x: chr(int(x)), ip.split('.'))) # 4bytes of IP
 
+      print "RETURN DNS", len(packet), len(r)
       return packet
 

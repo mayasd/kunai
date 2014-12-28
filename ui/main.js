@@ -67,7 +67,7 @@ $.each(servers, function(_idx, s){
     }else{
 	s = s+':'+def_port;
     }
-    var ws_port = port + 100;
+    var ws_port = port + 1;
     console.log(s);
     console.log('PORT +'+port);
     pot_servers[s] = {'state':'pending', 'uri':s, port:port, ws_port:ws_port, hostname:hostname, 'elected':false};

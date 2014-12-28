@@ -51,7 +51,7 @@ KGOSSIP = 10
 
 # Main class for a Gossip cluster
 class Gossip(object):
-    def __init__(self, nodes, nodes_lock, addr, port, name, incarnation, uuid, tags, seeds):
+    def __init__(self, nodes, nodes_lock, addr, port, name, incarnation, uuid, tags, seeds, bootstrap):
         self.nodes = nodes
         self.nodes_lock = nodes_lock
         self.addr = addr
@@ -61,6 +61,9 @@ class Gossip(object):
         self.uuid = uuid
         self.tags = tags
         self.seeds = seeds
+        self.bootstrap = bootstrap
+
+        self.interrupted = False
         
         # list of uuid to ping back because we though they were dead        
         self.to_ping_back = [] 

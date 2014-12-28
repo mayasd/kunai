@@ -79,16 +79,19 @@ REPLICATS = 1
 
 class Cluster(object):
     
-    parameters = {'port': {'type':'int', 'mapto':'port'},
-                  'data': {'type':'path', 'mapto':'data_dir'},
-                  'libexec': {'type':'path', 'mapto':'libexec_dir'},
-                  'bootstrap': {'type':'bool', 'mapto':'bootstrap'},
-                  'seeds': {'type':'list', 'mapto':'seeds'},
-                  'tags': {'type':'list', 'mapto':'tags'},
-                  'encryption_key': {'type':'string', 'mapto':'encryption_key'},
-                  'master_key_priv': {'type':'string', 'mapto':'master_key_priv'},
-                  'master_key_pub': {'type':'string', 'mapto':'master_key_pub'},
-                  }
+    parameters = {
+        'port': {'type':'int', 'mapto':'port'},
+        'dns_port': {'type':'int', 'mapto':'dns_port'},
+        'datacenters': {'type':'list', 'mapto':'datacenters'},        
+        'data': {'type':'path', 'mapto':'data_dir'},
+        'libexec': {'type':'path', 'mapto':'libexec_dir'},
+        'bootstrap': {'type':'bool', 'mapto':'bootstrap'},
+        'seeds': {'type':'list', 'mapto':'seeds'},
+        'tags': {'type':'list', 'mapto':'tags'},
+        'encryption_key': {'type':'string', 'mapto':'encryption_key'},
+        'master_key_priv': {'type':'string', 'mapto':'master_key_priv'},
+        'master_key_pub': {'type':'string', 'mapto':'master_key_pub'},
+    }
 
 
     def __init__(self, port, name, bootstrap, seeds, tags, cfg_dir, libexec_dir):
@@ -107,6 +110,11 @@ class Cluster(object):
         
         # keep a list of the checks names that match our tags
         self.active_checks = []
+
+        # graphite and statsd objects
+        self.graphite = None
+        self.statsd   = None
+        self.websocket = None
         
         # Some default value that can be erased by the
         # main configuration file
@@ -119,6 +127,7 @@ class Cluster(object):
         self.mfkey_pub  = None
         
         self.port = port
+        self.dns_port = 53
         self.name = name
         if not self.name:
             self.name = '%s-%s' % (socket.gethostname(), self.port)
@@ -139,7 +148,7 @@ class Cluster(object):
         if cfg_dir:
            self.cfg_dir = os.path.abspath(self.cfg_dir)
            self.load_cfg_dir()        
-        
+
         # We can start with a void data dir
         if not os.path.exists(self.data_dir):
             os.mkdir(self.data_dir)
@@ -304,7 +313,7 @@ class Cluster(object):
         dockermgr.launch()
         
         # Our main object for gossip managment
-        self.gossip = Gossip(self.nodes, self.nodes_lock, self.addr, self.port, self.name, self.incarnation, self.uuid, self.tags, self.seeds)
+        self.gossip = Gossip(self.nodes, self.nodes_lock, self.addr, self.port, self.name, self.incarnation, self.uuid, self.tags, self.seeds, self.bootstrap)
 
         # get the message in a pub-sub way
         pubsub.sub('manage-message', self.manage_message_pub)
@@ -333,7 +342,9 @@ class Cluster(object):
        if not isinstance(o, dict):
              logger.log('ERROR: the configuration file %s content is not a valid dict' % fp)
              sys.exit(2)
-       logger.debug("Configuration, opening file data", o)
+       logger.debug("Configuration, opening file data", o, fp)
+       known_types = ['check', 'service', 'handler', 'generator',
+                      'graphite', 'statsd', 'websocket']
        if 'check' in o:
           check = o['check']
           if not isinstance(check, dict):
@@ -345,8 +356,8 @@ class Cluster(object):
           mod_time = int(os.path.getmtime(fp))
           cname = os.path.splitext(fname)[0]
           self.import_check(check, 'file:%s' % fname, cname, mod_time=mod_time)
-        
-       elif 'service' in o:
+       
+       if 'service' in o:
           service = o['service']
           if not isinstance(service, dict):
              logger.log('ERROR: the service from the file %s is not a valid dict' % fp)
@@ -356,8 +367,9 @@ class Cluster(object):
           fname = fp[len(self.cfg_dir)+1:]
           sname = os.path.splitext(fname)[0]
           self.import_service(service, 'file:%s' % fname, sname, mod_time=mod_time)
+       
        # HEHEHEHE
-       elif 'handler' in o:
+       if 'handler' in o:
            handler = o['handler']
            if not isinstance(handler, dict):
                logger.log('ERROR: the handler from the file %s is not a valid dict' % fp)
@@ -367,7 +379,8 @@ class Cluster(object):
            fname = fp[len(self.cfg_dir)+1:]
            hname = os.path.splitext(fname)[0]
            self.import_handler(handler, 'file:%s' % hname, hname, mod_time=mod_time)          
-       elif 'generator' in o:
+
+       if 'generator' in o:
           generator = o['generator']
           if not isinstance(generator, dict):
              logger.log('ERROR: the generator from the file %s is not a valid dict' % fp)
@@ -376,13 +389,40 @@ class Cluster(object):
           mod_time = int(os.path.getmtime(fp))
           fname = fp[len(self.cfg_dir)+1:]
           gname = os.path.splitext(fname)[0]
-          self.import_generator(generator, 'file:%s' % fname, gname, mod_time=mod_time)          
-       else: # classic main file
+          self.import_generator(generator, 'file:%s' % fname, gname, mod_time=mod_time)
+
+       if 'graphite' in o:
+           graphite = o['graphite']
+           if not isinstance(graphite, dict):
+               logger.log('ERROR: the graphite from the file %s is not a valid dict' % fp)
+               sys.exit(2)
+           self.graphite = graphite
+
+       if 'statsd' in o:
+           statsd = o['statsd']
+           if not isinstance(statsd, dict):
+               logger.log('ERROR: the statsd from the file %s is not a valid dict' % fp)
+               sys.exit(2)
+           self.statsd = statsd
+
+       if 'websocket' in o:
+           websocket = o['websocket']
+           if not isinstance(websocket, dict):
+               logger.log('ERROR: the websocket from the file %s is not a valid dict' % fp)
+               sys.exit(2)
+           self.websocket = websocket
+
+       # reindent this
+       if True:
            # grok all others data so we can use them in our checks
            parameters = self.__class__.parameters
            for (k,v) in o.iteritems():
+               # chceck, service, ... are already managed
+               if k in known_types:
+                   continue
                # if k is not a internal parameters, use it in the cfg_data part
-               if k not in ['check', 'service'] and not k in parameters:
+               if not k in parameters:
+                   print "SETTING RAW VALUE", k, v
                    self.cfg_data[k] = v
                else: # cannot be check and service here
                    e = parameters[k]
@@ -410,6 +450,7 @@ class Cluster(object):
                        logger.error('Unkown parameter type %s' % k)
                        return
                    # It's valid, I set it :)
+                   print "VALID PARAM", mapto, v
                    setattr(self, mapto, v)
 
 
@@ -474,7 +515,7 @@ class Cluster(object):
        check['state_id'] = 3
        check['output'] = ''
        if not 'handlers' in check:
-           check['handler'] = ['default']
+           check['handlers'] = ['default']
        self.checks[check['id']] = check
 
 
@@ -741,8 +782,6 @@ class Cluster(object):
             except Exception, exp:
                 print "COLLECTOR LOAD FAIL", exp
                 continue
-            for (k,v) in m.__dict__.iteritems():
-                print k, v
 
         collector_clss = Collector.get_sub_class()
         for ccls in collector_clss:
@@ -974,8 +1013,8 @@ class Cluster(object):
 
     def launch_dns_listener(self):
        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-       logger.debug('DNS launched server port %d' % (self.port + 3000), part='dns')
-       sock.bind(('', self.port + 3000 ))
+       logger.debug('DNS launched server port %d' % (self.dns_port), part='dns')
+       sock.bind(('', self.dns_port))
        while not self.interrupted:
            try:
                data, addr = sock.recvfrom(1024)
@@ -991,6 +1030,13 @@ class Cluster(object):
 
 
     def launch_websocket_listener(self):
+        if self.websocket is None:
+            logger.log('No websocket object defined in the configuration, skipping it')
+            return
+        enabled = self.websocket.get('enabled', False)
+        if not enabled:
+            logger.log('Websocket is disabled, skipping it')
+            return
         self.webso = WebSocketBackend(self)
         # also load it in the websockermanager so other part
         # can easily forward messages
@@ -1028,7 +1074,7 @@ class Cluster(object):
                             node = n
                 if node is None:
                     return abort(404, 'This node is not found')
-                # Services are easy, we alrady got them
+                # Services are easy, we already got them
                 r['services'] = node['services']
                 # checks are harder, we must find them in the kv nodes
                 v = self.get_key('__health/%s' % nname)

@@ -6,8 +6,9 @@
             "script": "/root/kunai/libexec/check_redis.py",
             "interval": "10s",
 	    "handlers": ["default"]
-        }
-    },        
+        },
+	"raft": true
+    },
     "generator": {
         "apply_on": "haproxy",
 	"path": "/tmp/haproxy.cfg",

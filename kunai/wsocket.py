@@ -19,7 +19,8 @@ class WebExporter(WebSocket):
 class WebSocketBackend(object):
     def __init__(self, clust):
         self.clust = clust
-        self.server = SimpleWebSocketServer(clust.addr, clust.port + 100, WebExporter)
+        port = clust.websocket.get('port', 6769)
+        self.server = SimpleWebSocketServer(clust.addr, port, WebExporter)
 
 
     def run(self):
