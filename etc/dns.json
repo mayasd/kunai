@@ -1,0 +1,8 @@
+{
+    "dns":{
+	"enabled"    : true,
+	"port"       : 53,
+	"domain"     : ".kunai"
+    }
+    
+}

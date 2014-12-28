@@ -29,11 +29,11 @@ class DNSQuery:
 
     
    # We look in the nodes for the good tag
-   def lookup_for_nodes(self, nodes):
-      print "LOOKING FOR"*10, self.domain
-      if not self.domain.endswith('.kunai.'):
+   def lookup_for_nodes(self, nodes, dom):
+      print "LOOKING FOR"*10, self.domain, "inside domain", dom
+      if not self.domain.endswith(dom):
           return []
-      tag = self.domain[:-len('.kunai.')]
+      tag = self.domain[:-len(dom)]
       print "DNS lookup for tag", tag
       r = []
       for n in nodes.values():

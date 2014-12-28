@@ -81,7 +81,6 @@ class Cluster(object):
     
     parameters = {
         'port': {'type':'int', 'mapto':'port'},
-        'dns_port': {'type':'int', 'mapto':'dns_port'},
         'datacenters': {'type':'list', 'mapto':'datacenters'},        
         'data': {'type':'path', 'mapto':'data_dir'},
         'libexec': {'type':'path', 'mapto':'libexec_dir'},
@@ -115,6 +114,7 @@ class Cluster(object):
         self.graphite = None
         self.statsd   = None
         self.websocket = None
+        self.dns = None
         
         # Some default value that can be erased by the
         # main configuration file
@@ -344,7 +344,7 @@ class Cluster(object):
              sys.exit(2)
        logger.debug("Configuration, opening file data", o, fp)
        known_types = ['check', 'service', 'handler', 'generator',
-                      'graphite', 'statsd', 'websocket']
+                      'graphite', 'dns', 'statsd', 'websocket']
        if 'check' in o:
           check = o['check']
           if not isinstance(check, dict):
@@ -398,6 +398,13 @@ class Cluster(object):
                sys.exit(2)
            self.graphite = graphite
 
+       if 'dns' in o:
+           dns = o['dns']
+           if not isinstance(dns, dict):
+               logger.log('ERROR: the dns from the file %s is not a valid dict' % fp)
+               sys.exit(2)
+           self.dns = dns
+           
        if 'statsd' in o:
            statsd = o['statsd']
            if not isinstance(statsd, dict):
@@ -1012,9 +1019,26 @@ class Cluster(object):
 
 
     def launch_dns_listener(self):
+       if self.dns is None:
+           logger.log('No dns object defined in the configuration, skipping it')
+           return
+       enabled = self.dns.get('enabled', False)
+       if not enabled:
+            logger.log('Dns server is disabled, skipping it')
+            return
+
+       port = self.dns.get('port', 53)
+       domain = self.dns.get('domain', '.kunai')
+       # assume that domain is like .foo.
+       if not domain.endswith('.'):
+           domain += '.'
+       if not domain.startswith('.'):
+           domain = '.'+domain
+        
+        
        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-       logger.debug('DNS launched server port %d' % (self.dns_port), part='dns')
-       sock.bind(('', self.dns_port))
+       logger.info('DNS launched server port %d' % port, part='dns')
+       sock.bind(('', port))
        while not self.interrupted:
            try:
                data, addr = sock.recvfrom(1024)
@@ -1022,7 +1046,7 @@ class Cluster(object):
                continue # loop until we got some data :)           
            try:
                p = DNSQuery(data)
-               r = p.lookup_for_nodes(self.nodes)
+               r = p.lookup_for_nodes(self.nodes, domain)
                logger.debug("DNS lookup nodes response:", r, part='dns')
                sock.sendto(p.response(r), addr)
            except Exception, exp:
