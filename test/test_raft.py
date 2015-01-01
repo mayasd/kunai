@@ -123,7 +123,7 @@ class TestRaft(KunaiTest):
     # Try with far more nodes
     def test_raft_large_leader_election(self):
         N = 200
-        W = 20
+        W = 60 # for very slow computing like travis?
         self.create_and_wait(N=N, wait=W)
 
         print "Looking if we really got a leader, and only one"        
