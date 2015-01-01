@@ -60,6 +60,7 @@ from kunai.threadmgr import threader
 from kunai.perfdata import PerfDatas
 from kunai.now import NOW
 from kunai.collector import Collector
+from kunai.collectors import get_collectors
 from kunai.gossip import Gossip
 from kunai.generator import Generator
 # now singleton objects
@@ -307,7 +308,7 @@ class Cluster(object):
 
         # Load all collectors
         self.collectors = {}
-        self.load_collectors()
+        get_collectors(self)        
 
         # Load docker thing if possible
         dockermgr.launch()
@@ -775,30 +776,6 @@ class Cluster(object):
             'next_check': int(time.time()) + int(random.random())*10,
             }
         self.collectors[cls] = e
-
-
-    def load_collectors(self):
-        collector_dir = os.path.join(self.data_dir, 'collectors')
-        p = collector_dir+'/*py'
-        print "LOAD", p
-        collector_files = glob.glob(p)
-        for f in collector_files:
-            fname = os.path.splitext(os.path.basename(f))[0]
-            try:
-                m = imp.load_source('collector%s' % fname, f)
-            except Exception, exp:
-                print "COLLECTOR LOAD FAIL", exp
-                continue
-
-        collector_clss = Collector.get_sub_class()
-        for ccls in collector_clss:
-            # skip base module Collector
-            if ccls == Collector:
-                continue
-            # Maybe this collector is already loaded
-            if ccls in self.collectors:
-                continue
-            self.load_collector(ccls)
 
 
     # What to do when we receive a signal from the system
