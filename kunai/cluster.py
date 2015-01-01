@@ -82,9 +82,10 @@ class Cluster(object):
     
     parameters = {
         'port': {'type':'int', 'mapto':'port'},
-        'datacenters': {'type':'list', 'mapto':'datacenters'},        
+        'datacenters': {'type':'list', 'mapto':'datacenters'},
         'data': {'type':'path', 'mapto':'data_dir'},
         'libexec': {'type':'path', 'mapto':'libexec_dir'},
+        'log': {'type':'path', 'mapto':'log_dir'},
         'bootstrap': {'type':'bool', 'mapto':'bootstrap'},
         'seeds': {'type':'list', 'mapto':'seeds'},
         'tags': {'type':'list', 'mapto':'tags'},
@@ -143,6 +144,8 @@ class Cluster(object):
         #self.broadcasts = []
         
         self.data_dir = os.path.abspath('data/data-%s' % self.name)
+        self.log_dir = '/var/log/kunai'
+        
         
         # Now look at the cfg_dir part
         self.cfg_dir = cfg_dir
@@ -153,9 +156,13 @@ class Cluster(object):
         # We can start with a void data dir
         if not os.path.exists(self.data_dir):
             os.mkdir(self.data_dir)
-        
+
+        # We can start with a void log dir too
+        if not os.path.exists(self.log_dir):
+            os.mkdir(self.log_dir)
+            
         # open the log file
-        logger.load(self.data_dir, self.name)
+        logger.load(self.log_dir, self.name)
 
         # Look if our encryption key is valid or not
         if self.encryption_key:
@@ -270,7 +277,7 @@ class Cluster(object):
         self.libexec_dir = libexec_dir
         if self.libexec_dir:
             self.libexec_dir = os.path.abspath(self.libexec_dir)
-            
+
         self.configuration_dir = cfg_dir
         if self.configuration_dir:
             self.configuration_dir = os.path.abspath(self.configuration_dir)

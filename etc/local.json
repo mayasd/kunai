@@ -6,6 +6,7 @@
     
     "data"           : "/var/lib/kunai/data",
     "libexec"        : "/var/lib/kunai/libexec/",
+    "log"            : "/var/log/kunai",
     "bootstrap"      : false,
     "seeds"          : [],
     "tags"           : ["haproxy", "linux"],
