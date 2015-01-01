@@ -743,7 +743,7 @@ class Gossip(object):
             if node is None:
                 return abort(404, 'This node is not found')
             logger.log('PUTTING LEAVE the node %s' % n, part='http')
-            self.gossip.set_leave(node)
+            self.set_leave(node)
             return
 
 

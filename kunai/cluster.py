@@ -130,7 +130,7 @@ class Cluster(object):
         self.dns_port = 53
         self.name = name
         if not self.name:
-            self.name = '%s-%s' % (socket.gethostname(), self.port)
+            self.name = '%s' % socket.gethostname()
         self.tags = [s.strip() for s in tags.split(',') if s.strip()]
         self.interrupted = False
         self.bootstrap = bootstrap
@@ -590,7 +590,7 @@ class Cluster(object):
              apply_on = service['name']
           service['apply_on'] = service['name']
           print "APPLY SERVICE ON", apply_on
-
+       apply_on = service['apply_on']
        if 'check' in service:
           check = service['check']
           cname = 'service:%s' % sname
@@ -1162,6 +1162,39 @@ class Cluster(object):
            return services
 
 
+        # We want a state of all our services, with the members
+        @route('/state/services/:sname')
+        def state_service(sname):
+           response.content_type = 'application/json'
+           logger.debug("/state/services/%s is called" % sname, part='http')
+           # We don't want to modify our services objects
+           services = copy.deepcopy(self.services)
+           service = services.get(sname, {})
+           if not service:
+               return {}
+           service['members'] = []
+           service['passing-members'] = []
+           service['passing'] = 0
+           service['failing-members'] = []
+           service['failing'] = 0
+           sname = service.get('name')
+           with self.nodes_lock:
+               for (uuid, node) in self.nodes.iteritems():
+                   if sname not in node['services']:
+                       continue
+                   service['members'].append(node['name'])
+                   if service['state_id'] == 0:
+                       service['passing'] += 1
+                       service['passing-members'].append(node['name'])
+                   else:
+                       service['failing'] += 1
+                       service['failing-members'].append(node['name'])
+           
+           return service
+
+       
+
+       
         @route('/agent/checks')
         def agent_checks():
            response.content_type = 'application/json'

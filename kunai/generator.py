@@ -21,6 +21,23 @@ s = t.render(service=service, nodes=nodes, node=node)
 from kunai.log import logger
 
 
+gclust = None
+# Get all nodes that are defining a service sname and where the service is OK
+def ok_nodes(service=''):
+    global gclust
+    sname = service
+    with gclust.gossip.nodes_lock:
+        nodes = copy.copy(gclust.nodes) # just copy the dict, not the nodes themselves
+    res = []
+    for n in nodes.values():
+        if n['state'] != 'alive':
+            continue
+        for s in n['services'].values():
+            if s['name'] == sname and s['state_id'] == 0:
+                res.append( (n,s) )
+    return res
+
+
 class Generator(object):
     def __init__(self, g):
         self.g = g
@@ -32,6 +49,9 @@ class Generator(object):
         
     # Open the template file and generate the output
     def generate(self, clust):
+        # HACK, atomise this global thing!!
+        global gclust
+        gclust = clust
         # If not jinja2, bailing out
         if jinja2 is None:
             return
@@ -44,9 +64,15 @@ class Generator(object):
             self.buf = None
             self.template = None
 
+        # copy objects because they can move
+        node = copy.copy(clust.nodes[clust.uuid])
+        with clust.gossip.nodes_lock:
+            nodes = copy.copy(clust.nodes) # just copy the dict, not the nodes themselves
+            
         # Now try to make it a jinja template object
         try:
-            self.template = jinja2.Template(self.buf)
+            env = jinja2.Environment(trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True, )
+            self.template = env.from_string(self.buf)
         except Exception, exp:
             logger.error('Template file %s did raise an error with jinja2 : %s' % (self.g['template'], exp))
             self.buf = None
@@ -54,11 +80,7 @@ class Generator(object):
 
         # Now try to render all of this with real objects
         try:
-            # copy objects because they can move
-            node = copy.copy(clust.nodes[clust.uuid])
-            with clust.gossip.nodes_lock:
-                nodes = copy.copy(clust.nodes) # just copy the dict, not the nodes themselves
-            self.output = self.template.render(nodes=nodes, node=node)
+            self.output = self.template.render(nodes=nodes, node=node, ok_nodes=ok_nodes)
         except Exception, exp:
             logger.error('Template rendering %s did raise an error with jinja2 : %s' % (self.g['template'], traceback.format_exc()))
             self.output = None

@@ -22,6 +22,7 @@ import readline
 import signal
 from StringIO import StringIO
 
+
 sys.path.append('.')
 
 from kunai.log import cprint, logger
@@ -114,6 +115,7 @@ class CLICommander(object):
 
         self.completion_matches = []
 
+    
     def load_cli_mods(self, opts):
         # Main list of keywords for the first parameter
         self.keywords = {}
@@ -165,7 +167,7 @@ class CLICommander(object):
         # EMACS rules :) / VI sucks
         readline.parse_and_bind('set editing-mode emacs')
         # Try to read and save the history when exiting
-        histfile = os.path.join(os.path.expanduser("~"), ".shinken.history")
+        histfile = os.path.join(os.path.expanduser("~"), ".kunai.history")
         try:
             readline.read_history_file(histfile)
         except IOError:
@@ -193,10 +195,12 @@ class CLICommander(object):
             logger.debug("WANT TO CALL WITH ARGS %s" % args)
             self.one_loop(args)
 
+            
     def execute_shell(self, line):
         output = os.popen(line).read()
         print output
 
+        
     # Execute a function based on the command line
     def one_loop(self, command_args):
         if not self.init_done:
@@ -242,6 +246,7 @@ class CLICommander(object):
         logger.debug("CALLING" + str(f) + "WITH" + str(cmd_args) + "and" + str(cmd_opts) + str(type(cmd_opts)) + str(dir(cmd_opts)))
         f(*cmd_args, **cmd_opts.__dict__)
 
+    
     # Complete is a bit strange in readline. It will call it as it do not answser None, by increasing the
     # state int for each call. So don't loop forever!
     def complete(self, text, state):

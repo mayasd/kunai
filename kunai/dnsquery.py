@@ -30,13 +30,24 @@ class DNSQuery:
     
    # We look in the nodes for the good tag
    def lookup_for_nodes(self, nodes, dom):
-      print "LOOKING FOR"*10, self.domain, "inside domain", dom
+      print "DNS LOOKING ", self.domain, "inside domain", dom
       if not self.domain.endswith(dom):
           return []
-      tag = self.domain[:-len(dom)]
-      print "DNS lookup for tag", tag
+      search = self.domain[:-len(dom)]
+      # split into sname.service.datacenter
+      print "DNS lookup for search", search
+      elts = search.split('.', 2)
+      if len(elts) != 3:
+         print "DNS bad query", search
+         return []
+      dc = elts[2]
+      _type = elts[1]
+      tag = elts[0]
       r = []
       for n in nodes.values():
+         # skip non alive nodes
+         if n['state'] != 'alive':
+            continue
          if tag in n['tags']:
             services = n.get('services', {})
             state_id = 0
@@ -56,14 +67,14 @@ class DNSQuery:
                   except socket.gaierror: # not found
                      print 'DNS cannot find the hotname ip', addr
                      # skip this node
-
+      
       print "DNS R:", r
       return r
 
 
    def response(self, r):
       packet = ''
-      print "DOM", self.domain
+      print "DNS DOM", self.domain
       nb = len(r)
       if self.domain:
          packet += self.data[:2] + "\x81\x80"
@@ -74,7 +85,7 @@ class DNSQuery:
             packet += '\xc0\x0c'                                 # Pointer to domain name
             packet += '\x00\x01\x00\x01\x00\x00\x00\x3c\x00\x04' # Response type, ttl and resource data length -> 4 bytes
             packet += str.join('',map(lambda x: chr(int(x)), ip.split('.'))) # 4bytes of IP
-
-      print "RETURN DNS", len(packet), len(r)
+      
+      print "DNS RETURNing", len(packet), len(r)
       return packet
 

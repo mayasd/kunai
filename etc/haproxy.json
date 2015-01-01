@@ -1,18 +1,12 @@
 {
     "service": {
-        "tags": ["master"],
-        "port": 80,
-        "check": {
-            "script": "/root/kunai/libexec/check_redis.py",
-            "interval": "10s",
+	"tags": ["master"],
+	"port": 80,
+	"apply_on": "haproxy",
+	"check": {
+	    "script": "/usr/lib/nagios/plugins/check_http -H www.google.fr",
+	    "interval": "10s",
 	    "handlers": ["default"]
-        },
-	"raft": true
-    },
-    "generator": {
-        "apply_on": "haproxy",
-	"path": "/tmp/haproxy.cfg",
-	"template": "haproxy.cfg",
-	"command": "/etc/init.d/haproxy reload"
+	}
     }
 }
