@@ -10,15 +10,7 @@ import os
 import re
 import tempfile
 import json
-import shutil
-import zipfile
-import tarfile
-import pycurl
-import urllib
-import ConfigParser
 import imp
-import shlex
-import readline
 import signal
 from StringIO import StringIO
 
@@ -27,8 +19,7 @@ sys.path.append('.')
 
 from kunai.log import cprint, logger
 from kunai import cli as cli_mod
-
-VERSION = "0.1"
+from kunai.version import VERSION
 
 
 logger.setLevel('WARNING')
@@ -50,62 +41,13 @@ class Dummy():
 
 
 if os.name != 'nt':
-    DEFAULT_CFG = os.path.expanduser('~/.kunai.ini')
+    DEFAULT_CFG = '/etc/kunai/local.json'
 else:
-    DEFAULT_CFG = 'c:\\shinken\\etc\\kunai.ini'
-
-
-# This will allow to add comments to the generated configuration file, once
-# by section.
-class ConfigParserWithComments(ConfigParser.RawConfigParser):
-    def add_comment(self, section, comment):
-        if not comment.startswith('#'):
-            comment = '#'+comment
-        self.set(section, ';%s' % (comment,), None)
-
-
-    def write(self, fp):
-        """Write an .ini-format representation of the configuration state."""
-        if self._defaults:
-            fp.write("[%s]\n" % ConfigParser.DEFAULTSECT)
-            for (key, value) in self._defaults.items():
-                self._write_item(fp, key, value)
-            fp.write("\n")
-        for section in self._sections:
-            fp.write("[%s]\n" % section)
-            for (key, value) in self._sections[section].items():
-                self._write_item(fp, key, value)
-            fp.write("\n")
-
-
-    def _write_item(self, fp, key, value):
-        if key.startswith(';') and value is None:
-            fp.write("%s\n" % (key[1:],))
-        else:
-            fp.write("%s = %s\n" % (key, str(value).replace('\n', '\n\t')))
+    DEFAULT_CFG = 'c:\\kunai\\etc\\local.json'
 
 
 # Commander is the main class for managing the CLI session and behavior
 class CLICommander(object):
-
-    ini_defaults = {'paths': {
-            'comment' : ''' # Set the paths according to your setup. Defaults follow
-# the Linux Standard Base''',
-            'values'  : [('etc', '/etc/kunai'), ('lib','/var/lib/kunai'),
-                         ('share', '%(lib)s/share'), ('cli','%(lib)s/cli'),
-                         ('packs', '%(etc)s/packs'), ('modules', '%(lib)s/modules'),
-                         ('doc', '%(lib)s/doc'), ('inventory', '%(lib)s/inventory'),
-                         ('libexec', '%(lib)s/libexec'),
-                         ]}
-                    ,
-                    'shinken.io':{
-            'comment': '''# Options for connection to the shinken.io website.
-# proxy: curl style, should look as http://user:password@server:3128
-# api_key: useful for publishing packages or earn XP after each install. Create an account at http://shinken.io and go to http://shinken.io/~
-''',
-            'values'  : [('proxy',''), ('api_key','')]}
-                    }
-
     def __init__(self, config, opts):
         self.keywords = {}
         self.config = config
@@ -113,8 +55,6 @@ class CLICommander(object):
 
         # We will now try to load the keywords from the modules
         self.load_cli_mods(opts)
-
-        self.completion_matches = []
 
     
     def load_cli_mods(self, opts):
@@ -126,7 +66,7 @@ class CLICommander(object):
         
         self.init_done = True
 
-        logger.debug("WILL LOAD THE CLI DIR %s" % cli_mods_dir)
+        logger.debug("Loading the cli directory %s" % cli_mods_dir)
         cli_mods_dirs = [os.path.join(cli_mods_dir, d) for d in os.listdir(cli_mods_dir) if os.path.isdir(os.path.join(cli_mods_dir, d))]
 
         for d in cli_mods_dirs:
@@ -151,53 +91,7 @@ class CLICommander(object):
                         self.keywords[k] = e
 
         logger.debug('We load the keywords %s' % self.keywords)
-
-        
-    def loop(self):
-        if not self.init_done:
-            logger.error('CLI loading not done: missing configuration data. Please run --init')
-            return
-
-        readline.parse_and_bind('tab: complete')
-        # Use the CLI as completer
-        readline.set_completer(self.complete)
-
-        # EMACS rules :) / VI sucks
-        readline.parse_and_bind('set editing-mode emacs')
-        # Try to read and save the history when exiting
-        histfile = os.path.join(os.path.expanduser("~"), ".kunai.history")
-        try:
-            readline.read_history_file(histfile)
-        except IOError:
-            pass
-        import atexit
-        atexit.register(readline.write_history_file, histfile)
-
-        while True:
-            try:
-                line = raw_input('> ')
-            except EOFError:
-                print ''
-                break
-            line = line.strip()
-            if line in ['quit', 'bye', 'sayonara']:
-                break
-
-            if not line:
-                continue
-            if line.startswith('!'):
-                self.execute_shell(line[1:])
-                continue
-            # More cleassic command
-            args = shlex.split(line.encode('utf8', 'ignore'))
-            logger.debug("WANT TO CALL WITH ARGS %s" % args)
-            self.one_loop(args)
-
-            
-    def execute_shell(self, line):
-        output = os.popen(line).read()
-        print output
-
+    
         
     # Execute a function based on the command line
     def one_loop(self, command_args):
@@ -245,39 +139,29 @@ class CLICommander(object):
         f(*cmd_args, **cmd_opts.__dict__)
 
     
-    # Complete is a bit strange in readline. It will call it as it do not answser None, by increasing the
-    # state int for each call. So don't loop forever!
-    def complete(self, text, state):
-        #print "STATE?", text, state
+    def print_list(self):
+        if not self.init_done:
+            return
+        print "Available commands:"
+        all_from = {}
+        for (k, m) in self.keywords.iteritems():
+            came_from = m['came_from']
+            if came_from not in all_from:
+                all_from[came_from] = {k:m}
+            else:
+                all_from[came_from][k] = m
+        for (mod_name, d) in all_from.iteritems():
+            print '%s:' % mod_name
+            cmds = d.keys()
+            cmds.sort()
+            for k in cmds:
+                m = d[k]
+                cprint('\t%s ' % k.ljust(10), 'green', end='')
+                cprint(': %s' % m['description'])
+        return
 
-        # New completion call
-        if state == 0:
-            self.completion_matches = []
-
-        #print "TRY TO COMPLETE", text
-        text = text.strip()
-
-        args = shlex.split(text.encode('utf8', 'ignore'))
-        #print "ARGS", args
-        if len(args) == 0:
-            args = ['']
-        keyword = args[0]
-        # Trying to expand the command name
-        if len(args) == 1 and state == 0:
-            for k in self.keywords:
-                if k.startswith(text):
-                    self.completion_matches.append(k)
-
-        response = None
-        try:
-            response = self.completion_matches[state]
-        except IndexError:
-            response = None
-
-        #print "CALL", text, "state", state, response
-        return response
-
-
+    
+    
 if __name__ == '__main__':
     parser = optparse.OptionParser(
         '',
@@ -285,16 +169,12 @@ if __name__ == '__main__':
         add_help_option=False)
     parser.add_option('--proxy', dest="proxy",
                       help="""Proxy URI. Like http://user:password@proxy-server:3128""")
-    parser.add_option('-A', '--api-key',
-                      dest="api_key", help=("Your API key for uploading the package to the Shinken.io website. If you don't have one, please go to your account page"))
     parser.add_option('-l', '--list', action='store_true',
                       dest="do_list", help=("List available commands"))
-    parser.add_option('--init', action='store_true',
-                      dest="do_init", help=("Initialize/refill your shinken.ini file (default to %s)" % DEFAULT_CFG))
     parser.add_option('-D', action='store_true',
                       dest="do_debug", help=("Enable the debug mode"))
-    parser.add_option('-c', '--config', dest="iniconfig", default=DEFAULT_CFG,
-                      help=("Path to your shinken.ini file. Default: %s" % DEFAULT_CFG))
+    parser.add_option('-c', '--config', dest="jsonconfig", default=DEFAULT_CFG,
+                      help=("Path to your local.json file. Default: %s" % DEFAULT_CFG))
     parser.add_option('-v', action='store_true',
                       dest="do_verbose", help=("Be more verbose"))
     parser.add_option('-h', '--help', action='store_true',
@@ -314,22 +194,22 @@ if __name__ == '__main__':
         sys.exit(0)
 
     if opts.do_verbose:
-        logger.set_level(logger.INFO)
+        logger.setLevel('INFO')
 
     if opts.do_debug:
-        logger.set_level(logger.DEBUG)
-
+        logger.setLevel('DEBUG')
+    
     cfg = None
-    if not os.path.exists(opts.iniconfig):
+    if not os.path.exists(opts.jsonconfig):
         logger.debug('Missing configuration file!')
     else:
-        cfg = ConfigParser.ConfigParser()
-        cfg.read(opts.iniconfig)
-        for section in cfg.sections():
-            if not section in CONFIG:
-                CONFIG[section] = {}
-            for (key, value) in cfg.items(section):
-                CONFIG[section][key] = value
+        try:
+            with open(opts.jsonconfig, 'r') as f:
+                CONFIG = json.load(f)
+            logger.debug("Loaded configuration file %s : %s" %(opts.jsonconfig, CONFIG))
+        except Exception, exp:
+            logger.error('Cannot load configuration file %s: %s' % (opts.jsonconfig, exp))
+            sys.exit(2)
 
     CLI = CLICommander(CONFIG, opts)
 
@@ -376,68 +256,14 @@ if __name__ == '__main__':
 
         sys.exit(0)
 
-    # If the user explicitely set the proxy, take it!
-    if opts.proxy:
-        CONFIG['shinken.io']['proxy'] = opts.proxy
-
     # Maybe he/she just want to list our commands?
     if opts.do_list:
-        if not CLI.init_done:
-            sys.exit(0)
-        print "Available commands:"
-        all_from = {}
-        for (k, m) in CLI.keywords.iteritems():
-            came_from = m['came_from']
-            if came_from not in all_from:
-                all_from[came_from] = {k:m}
-            else:
-                all_from[came_from][k] = m
-        for (mod_name, d) in all_from.iteritems():
-            print '%s:' % mod_name
-            cmds = d.keys()
-            cmds.sort()
-            for k in cmds:
-                m = d[k]
-                cprint('\t%s ' % k.ljust(10), 'green', end='')
-                cprint(': %s' % m['description'])
+        CLI.print_list()
         sys.exit(0)
-
-    if opts.do_init:
-        new_cfg = ConfigParserWithComments()
-        modify = False
-        if not cfg:
-            cfg = ConfigParser.ConfigParser()
-
-        # Import data from the loaded configuration
-        for section in cfg.sections():
-            if not new_cfg.has_section(section):
-                new_cfg.add_section(section)
-            for (k, v) in cfg.items(section):
-                new_cfg.set(section, k, v)
-
-        for (s, d) in CLI.ini_defaults.iteritems():
-            comment = d.get('comment', '')
-            values = d.get('values', [])
-            if not cfg.has_section(s) and not new_cfg.has_section(s):
-                print "Creating ini section", s
-                new_cfg.add_section(s)
-                modify = True
-            if comment:
-                new_cfg.add_comment(s, comment)
-            for (k, v) in values:
-                if not cfg.has_option(s, k):
-                    new_cfg.set(s, k, v)
-                    modify = True
-                #print new_cfg.items(s)
-        if modify:
-            print "Saving the new configuration file", opts.iniconfig
-            with open(opts.iniconfig, 'wb') as configfile:
-                new_cfg.write(configfile)
-        sys.exit(0)
-
-    # if just call shinken, we must open a prompt, but will be for another version
+    
+    # if just call kunai, we must show the available commands
     if len(command_args) == 0:
-        CLI.loop()
+        CLI.print_list()
         sys.exit(0)
 
     # If it's just a one call shot, do it!
