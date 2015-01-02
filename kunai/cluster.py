@@ -2256,7 +2256,7 @@ Subject: %s
           self.put_key(key, all_checks)
 
        # Ok go launch it :)
-       threader.create_and_launch(do_update_checks_kv, args=(self,))
+       threader.create_and_launch(do_update_checks_kv, name='do_update_checks_kv', args=(self,))
 
 
     # Someone ask us to launch a new command (was already auth by RSA keys)

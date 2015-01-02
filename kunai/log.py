@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-
+import logging
 
 
 def is_tty():
@@ -31,12 +31,28 @@ else:
             print s
 
 
+            
+            
+            
 class Logger(object):
     def __init__(self):
         self.data_dir = ''
         self.log_file = None
         self.name = ''
         self.logs = {}
+        self.level = logging.INFO
+        self.linkify_methods()
+
+
+    def linkify_methods(self):
+        methods = {'DEBUG': self.do_debug, 'WARNING': self.do_warning, 'INFO': self.do_info, 'ERROR':self.do_error}
+        for (s, m) in methods.iteritems():
+            level = getattr(logging, s)
+            # If the level is enough, link it
+            if level >= self.level:
+                setattr(self, s.lower(), m)
+            else:
+                setattr(self, s.lower(), self.do_null)
         
         
     def load(self, data_dir, name):
@@ -46,7 +62,17 @@ class Logger(object):
 
 
     def setLevel(self, s):
-        pass
+        try:
+            level = getattr(logging , s.upper())
+            if not isinstance(level, int):
+                raise AttributeError
+            self.level = level
+        except AttributeError:
+            self.error('Invalid logging level configuration %s' % s)
+            return
+        
+        self.linkify_methods()
+            
 
 
     def log(self, *args, **kwargs ):
@@ -72,18 +98,23 @@ class Logger(object):
            f.write(s+'\n')
 
     
-    def debug(self, *args, **kwargs):
+    def do_debug(self, *args, **kwargs):
         self.log(*args, color='magenta', **kwargs)
         
 
-    def info(self, *args, **kwargs):
+    def do_info(self, *args, **kwargs):
         self.log(*args, color='blue', **kwargs)
+
         
-    def warning(self, *args, **kwargs):
+    def do_warning(self, *args, **kwargs):
         self.log(*args, color='yellow', **kwargs)        
+
         
-    def error(self, *args,  **kwargs):
+    def do_error(self, *args,  **kwargs):
         self.log(*args, color='red',  **kwargs)
     
+    def do_null(self, *args,  **kwargs):
+        pass
 
+        
 logger = Logger()
