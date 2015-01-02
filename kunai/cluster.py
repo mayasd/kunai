@@ -300,7 +300,7 @@ class Cluster(object):
         if self.libexec_dir:
             self.libexec_dir = os.path.abspath(self.libexec_dir)
 
-        self.configuration_dir = cfg_dir
+        self.configuration_dir = self.cfg_dir
         if self.configuration_dir:
             self.configuration_dir = os.path.abspath(self.configuration_dir)
         
