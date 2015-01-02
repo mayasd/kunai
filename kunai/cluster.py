@@ -95,15 +95,15 @@ class Cluster(object):
     }
 
 
-    def __init__(self, port, name, bootstrap, seeds, tags, cfg_dir, libexec_dir):
+    def __init__(self, port=6768, name='', bootstrap=False, seeds='', tags='', cfg_dir='', libexec_dir=''):
         self.set_exit_handler()
-
+        
         # Launch the now-update thread
         NOW.launch()
         
         # This will be the place where we will get our configuration data
         self.cfg_data = {}
-
+        
         self.checks = {}
         self.services = {}
         self.generators = {}
@@ -129,7 +129,6 @@ class Cluster(object):
         self.mfkey_pub  = None
         
         self.port = port
-        self.dns_port = 53
         self.name = name
         if not self.name:
             self.name = '%s' % socket.gethostname()
@@ -142,17 +141,32 @@ class Cluster(object):
         self.state = 'alive'
         self.addr = socket.gethostname()#'0.0.0.0'
         #self.broadcasts = []
-        
-        self.data_dir = os.path.abspath('data/data-%s' % self.name)
+
+        self.data_dir = os.path.abspath('/var/lib/kunai/')
         self.log_dir = '/var/log/kunai'
-        
+        self.libexec_dir = '/var/lib/kunai/libexec'
         
         # Now look at the cfg_dir part
-        self.cfg_dir = cfg_dir
         if cfg_dir:
-           self.cfg_dir = os.path.abspath(self.cfg_dir)
-           self.load_cfg_dir()        
+            self.cfg_dir = os.path.abspath(cfg_dir)
+        else:
+            self.cfg_dir = '/etc/kunai'
+        
+        if not os.path.exists(self.cfg_dir):
+            logger.error('Configuration directory is missing')
+            sys.exit(2)
+            
+        self.load_cfg_dir()        
 
+        # For the path inside the configuration we must
+        # string replace $data$ by the good value if it's set
+        parameters = self.__class__.parameters
+        for (k, d) in parameters.iteritems():
+            if d['type'] == 'path':
+                mapto = d['mapto']
+                v = getattr(self, mapto).replace('$data$', self.data_dir)
+                setattr(self, mapto, v)
+           
         # We can start with a void data dir
         if not os.path.exists(self.data_dir):
             os.mkdir(self.data_dir)

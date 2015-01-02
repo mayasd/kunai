@@ -81,7 +81,7 @@ if __name__ == '__main__':
         name = ''
         seeds = '192.168.56.102:%s,192.168.56.102:%s,192.168.56.102:%s' % (p, p2, PORTS[0])
 
-        cfg_dir = 'etc'
+        cfg_dir = ''
         libexec_dir = 'libexec'
         
         p = Process(target=f, args=(port, name, boot, seeds, _tags, cfg_dir, libexec_dir))

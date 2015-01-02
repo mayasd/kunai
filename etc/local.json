@@ -1,15 +1,17 @@
 {
-    "port"           : 6768,
-    "dns_port"       : 53,
-    
+
+    "tags"           : ["haproxy", "linux"],
     "datacenters"    : ["dc1"],
-    
-    "data"           : "/var/lib/kunai/data",
-    "libexec"        : "/var/lib/kunai/libexec/",
-    "log"            : "/var/log/kunai",
     "bootstrap"      : false,
     "seeds"          : [],
-    "tags"           : ["haproxy", "linux"],
+    
+    "port"           : 6768,
+    
+    "data"           : "/var/lib/kunai",
+    "libexec"        : "$data$/libexec/",
+    "log"            : "/var/log/kunai",
+    "run"            : "/var/run/kunai",
+    
     
     "encryption_key" : "",
     "master_key_priv": "mfkey.priv",

@@ -13,6 +13,7 @@ import time
 import json
 import requests as rq
 
+from kunai.cluster import Cluster
 from kunai.log import cprint, logger
 from kunai.version import VERSION
 
@@ -116,6 +117,33 @@ def do_version():
     cprint(VERSION)
 
 
+# Main daemon function. Currently in blocking mode only
+def do_start():
+    cprint('Starting kunai daemon', color='green')
+    c = Cluster()
+    cprint('Linking services and checks', color='green')    
+    c.link_services()
+    c.link_checks()
+    cprint('Launching listeners', color='green')    
+    c.launch_listeners()
+    cprint('Joining seeds nodes', color='green')    
+    c.join()
+    cprint('Starting check, collector and generator threads', color='green')    
+    c.launch_check_thread()
+    c.launch_collector_thread()
+    c.launch_generator_thread()
+    
+    if 'kv' in c.tags:
+        c.launch_replication_backlog_thread()
+        c.launch_replication_first_sync_thread()
+    if 'ts' in c.tags:
+        c.start_ts_listener()
+
+    # Blocking function here
+    c.main()
+    
+
+    
 def do_join(seed=''):
     if seed == '':
         logger.error('Missing target argument. For example 192.168.0.1:6768')
@@ -204,16 +232,25 @@ exports = {
         'args': [],
         'description': 'List the cluster members'
         },
+
+    do_start : {
+        'keywords': ['start'],
+        'args': [],
+        'description': 'Start the kunai daemon'
+        },
+    
     do_version : {
         'keywords': ['version'],
         'args': [],
         'description': 'Print the daemon version'
         },
+
     do_keygen : {
         'keywords': ['keygen'],
         'args': [],
         'description': 'Generate a encryption key'
         },
+
     do_exec : {
         'keywords': ['exec'],
         'args': [
