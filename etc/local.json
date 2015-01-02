@@ -10,7 +10,8 @@
     "data"           : "/var/lib/kunai",
     "libexec"        : "/var/lib/kunai/libexec/",
     "log"            : "/var/log/kunai",
-    "run"            : "/var/run/kunai",    
+    "lock"           : "/var/run/kunai.lock",
+    
     "socket"         : "/var/lib/kunai/kunai.sock",
 
     "log_level"      : "INFO",

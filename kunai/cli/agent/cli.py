@@ -16,7 +16,9 @@ import requests as rq
 from kunai.cluster import Cluster
 from kunai.log import cprint, logger
 from kunai.version import VERSION
+from kunai.launcher import Launcher
 
+# for local unix communication
 from kunai.requests_unixsocket import monkeypatch
 
 
@@ -130,30 +132,17 @@ def do_version():
     cprint(VERSION)
 
 
-# Main daemon function. Currently in blocking mode only
-def do_start():
-    cprint('Starting kunai daemon', color='green')
-    c = Cluster()
-    cprint('Linking services and checks', color='green')    
-    c.link_services()
-    c.link_checks()
-    cprint('Launching listeners', color='green')    
-    c.launch_listeners()
-    cprint('Joining seeds nodes', color='green')    
-    c.join()
-    cprint('Starting check, collector and generator threads', color='green')    
-    c.launch_check_thread()
-    c.launch_collector_thread()
-    c.launch_generator_thread()
     
-    if 'kv' in c.tags:
-        c.launch_replication_backlog_thread()
-        c.launch_replication_first_sync_thread()
-    if 'ts' in c.tags:
-        c.start_ts_listener()
-
-    # Blocking function here
-    c.main()
+    
+# Main daemon function. Currently in blocking mode only
+def do_start(daemon):
+    cprint('Starting kunai daemon', color='green')
+    lock_path = CONFIG.get('lock', '/var/run/kunai.pid')
+    l = Launcher(lock_path=lock_path)
+    l.do_daemon_init_and_start(is_daemon=daemon)
+    # Here only the last son reach this
+    l.main()
+    
     
 
 def do_stop():
@@ -257,7 +246,9 @@ exports = {
 
     do_start : {
         'keywords': ['start'],
-        'args': [],
+        'args': [
+            {'name' : '--daemon', 'type':'bool', 'default':False, 'description':'Start kunai into the background'},
+        ],
         'description': 'Start the kunai daemon'
         },
 

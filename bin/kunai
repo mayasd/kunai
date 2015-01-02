@@ -12,6 +12,7 @@ import tempfile
 import json
 import imp
 import signal
+import socket
 from StringIO import StringIO
 
 
@@ -52,6 +53,13 @@ class CLICommander(object):
         self.keywords = {}
         self.config = config
         self.init_done = False
+
+        name = config.get('name', '%s' % socket.gethostname())
+        log_dir = config.get('log', '/var/lib/kunai')
+        log_level = config.get('log_level', 'INFO')
+        # early set the logger part
+        logger.load(log_dir, name)
+        logger.setLevel(log_level)
 
         # We will now try to load the keywords from the modules
         self.load_cli_mods(opts)
@@ -117,7 +125,7 @@ class CLICommander(object):
             n = a.get('name', None)
             if n is None:
                 continue
-            default = a.get('default', Dummy)
+            default = a.get('default', Dummy())
             description = a.get('description', '')
             _type = a.get('type', 'standard')
             if n.startswith('-'):
@@ -128,10 +136,15 @@ class CLICommander(object):
                 # And if the parameter is like download-only, map it to
                 # download_only
                 dest = dest.replace('-', '_')
+                # add_option parameters, common ones
+                d = {'action':'store_true', 'dest':dest, 'help':(description)}
+                # If bool setup it
                 if _type == 'bool':
-                    command_parser.add_option(n, action='store_true', dest=dest, help=(description))
-                else:
-                    command_parser.add_option(n, dest=dest, help=(description))
+                    d['action'] = 'store_true'
+                # and if we got a real default, use it
+                if not isinstance(default, Dummy):
+                    d['default'] = default
+                command_parser.add_option(n, **d)
 
         cmd_opts, cmd_args = command_parser.parse_args(command_args)
         f = mod.get('f', None)
@@ -212,6 +225,12 @@ if __name__ == '__main__':
             sys.exit(2)
 
     CLI = CLICommander(CONFIG, opts)
+
+    # Reset levels if cli setup it
+    if opts.do_verbose:
+        logger.setLevel('INFO')    
+    if opts.do_debug:
+        logger.setLevel('DEBUG')
 
     # We should look on the sys.argv if we find a valid keywords to
     # call in one loop or not.

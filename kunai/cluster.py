@@ -86,6 +86,7 @@ class Cluster(object):
         'data': {'type':'path', 'mapto':'data_dir'},
         'libexec': {'type':'path', 'mapto':'libexec_dir'},
         'log': {'type':'path', 'mapto':'log_dir'},
+        'lock': {'type':'path', 'mapto':'lock_path'},        
         'socket': {'type':'path', 'mapto':'socket_path'},
         'log_level': {'type':'string', 'mapto':'log_level'},
         'bootstrap': {'type':'bool', 'mapto':'bootstrap'},
@@ -146,6 +147,7 @@ class Cluster(object):
 
         self.data_dir = os.path.abspath('/var/lib/kunai/')
         self.log_dir = '/var/log/kunai'
+        self.lock_path = '/var/run/kunai.lock'
         self.libexec_dir = '/var/lib/kunai/libexec'
         self.socket_path = '$data$/kunai.sock'
 
@@ -2556,10 +2558,22 @@ Subject: %s
 
         self.retention_nodes(force=True)
 
-        logger.log('Exiting')
+        # Clean lock file so daemon after us will be happy
+        self.clean_lock()
+        
+        logger.info('Exiting')
 
         
-
+    def clean_lock(self):
+        if os.path.exists(self.lock_path):
+            logger.info('Cleaning lock file at %s' % self.lock_path)
+            try:
+                os.unlink(self.lock_path)
+            except Exception, exp:
+                logger.error('Cannot remove lock file %s: %s' % (self.lock_path, exp))
+                
+            
+        
 
     def stack_event_broadcast(self, payload):
         msg = self.create_event_msg(payload)
