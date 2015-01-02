@@ -156,6 +156,15 @@ def do_start():
     c.main()
     
 
+def do_stop():
+    try:
+        r = get_local('/stop')
+    except rq.exceptions.ConnectionError, exp:
+        logger.error(exp)
+        return
+    cprint(r.text, color='green')
+    
+    
     
 def do_join(seed=''):
     if seed == '':
@@ -251,7 +260,13 @@ exports = {
         'args': [],
         'description': 'Start the kunai daemon'
         },
-    
+
+    do_stop : {
+        'keywords': ['stop'],
+        'args': [],
+        'description': 'Stop the kunai daemon'
+        },
+
     do_version : {
         'keywords': ['version'],
         'args': [],

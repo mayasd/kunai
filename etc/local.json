@@ -10,9 +10,10 @@
     "data"           : "/var/lib/kunai",
     "libexec"        : "/var/lib/kunai/libexec/",
     "log"            : "/var/log/kunai",
-    "run"            : "/var/run/kunai",
-    
+    "run"            : "/var/run/kunai",    
     "socket"         : "/var/lib/kunai/kunai.sock",
+
+    "log_level"      : "INFO",
     
     "encryption_key" : "",
     "master_key_priv": "mfkey.priv",

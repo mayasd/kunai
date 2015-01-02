@@ -87,6 +87,7 @@ class Cluster(object):
         'libexec': {'type':'path', 'mapto':'libexec_dir'},
         'log': {'type':'path', 'mapto':'log_dir'},
         'socket': {'type':'path', 'mapto':'socket_path'},
+        'log_level': {'type':'string', 'mapto':'log_level'},
         'bootstrap': {'type':'bool', 'mapto':'bootstrap'},
         'seeds': {'type':'list', 'mapto':'seeds'},
         'tags': {'type':'list', 'mapto':'tags'},
@@ -147,6 +148,8 @@ class Cluster(object):
         self.log_dir = '/var/log/kunai'
         self.libexec_dir = '/var/lib/kunai/libexec'
         self.socket_path = '$data$/kunai.sock'
+
+        self.log_level = 'INFO'
         
         # Now look at the cfg_dir part
         if cfg_dir:
@@ -160,6 +163,9 @@ class Cluster(object):
             
         self.load_cfg_dir()        
 
+        # Configure the logger with its new level if need
+        logger.setLevel(self.log_level)
+        
         # For the path inside the configuration we must
         # string replace $data$ by the good value if it's set
         parameters = self.__class__.parameters
@@ -1457,7 +1463,14 @@ class Cluster(object):
                 return json.dumps([])
             return json.dumps(self.ts.list_keys(key))
 
+        
+        # TODO: only in the local socket http webserver
+        @route('/stop')
+        def do_stop():
+            pubsub.pub('interrupt')
+            return 'OK'
 
+        
         @route('/exec/:tag')
         def launch_exec(tag='*'):
             response.content_type = 'application/json'
