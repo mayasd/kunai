@@ -233,7 +233,7 @@ setup(
     packages=find_packages(),
     package_data={'': package_data},
     description="Kunai is a service discovery tool",
-    long_description=read('README.rst'),
+    long_description=read('README.md'),
     author="Gabes Jean",
     author_email="naparuba@gmail.com",
     license="MIT",
