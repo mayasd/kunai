@@ -43,6 +43,10 @@ class Logger(object):
         self.level = logging.INFO
         self.linkify_methods()
 
+        # We will keep last 20 errors
+        self.last_errors_stack_size = 20
+        self.last_errors_stack = []
+        
 
     def linkify_methods(self):
         methods = {'DEBUG': self.do_debug, 'WARNING': self.do_warning, 'INFO': self.do_info, 'ERROR':self.do_error}
@@ -74,6 +78,9 @@ class Logger(object):
         self.linkify_methods()
             
 
+    def get_errors(self):
+        return self.last_errors_stack
+        
 
     def log(self, *args, **kwargs ):
        name = self.name
@@ -83,6 +90,14 @@ class Logger(object):
            cprint(s, color=kwargs['color'])
        else:
            print(s)
+       stack = kwargs.get('stack', False)
+
+       # Not a perf problems as it's just for errors and a limited size
+       if stack:
+           self.last_errors_stack.append(s)
+           # And keep only the last 20 ones for example
+           self.last_errors_stack = self.last_errors_stack[-self.last_errors_stack_size:]
+
        # if no data_dir, we cannot save anything...
        if self.data_dir == '':
            return
@@ -107,11 +122,12 @@ class Logger(object):
 
         
     def do_warning(self, *args, **kwargs):
-        self.log(*args, color='yellow', **kwargs)        
+        self.log(*args, color='yellow', stack=True, **kwargs)        
 
         
     def do_error(self, *args,  **kwargs):
-        self.log(*args, color='red',  **kwargs)
+        self.log(*args, color='red', stack=True,  **kwargs)
+
     
     def do_null(self, *args,  **kwargs):
         pass

@@ -1122,7 +1122,16 @@ class Cluster(object):
                     r['checks'][cid] = check
                 return r
 
-        
+
+        @route('/agent/info')
+        def get_info():
+            response.content_type = 'application/json'
+            r = {'errors':[], 'pid':os.getpid()}
+            r['errors'] = logger.get_errors()
+            return r
+
+
+            
         @route('/push-pull')
         def interface_push_pull():
            response.content_type = 'application/json'
