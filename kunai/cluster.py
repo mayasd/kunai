@@ -2052,6 +2052,9 @@ class Cluster(object):
        p = subprocess.Popen(script, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, preexec_fn=os.setsid)
        output, err = p.communicate()
        rc = p.returncode
+       # not found error like (127) should be catch as unknown check
+       if rc > 3:
+           rc = 3
        logger.debug("CHECK RETURN %s : %s %s %s" % (check['id'], rc, output, err), part='check')
        did_change = (check['state_id'] != rc)
        check['state'] = {0:'ok', 1:'warning', 2:'critical', 3:'unknown'}.get(rc, 'unknown')
@@ -2220,7 +2223,8 @@ Subject: %s
          if ts_node_manager == self.uuid:
              logger.debug("I am the TS node manager")
              print "HOW ADDING", timestamp, mname, value, type(timestamp), type(mname), type(value)
-             self.ts.tsb.add_value(timestamp, mname, value)
+             if self.ts:
+                 self.ts.tsb.add_value(timestamp, mname, value)
          # not me? stack a forwarder
          else:
              logger.debug("The node manager for this Ts is ", ts_node_manager)
