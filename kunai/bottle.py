@@ -2776,7 +2776,8 @@ class CherryPyServer(ServerAdapter):
     def run(self, handler): # pragma: no cover
         global gserver
         from cherrypy import wsgiserver
-        self.options['bind_addr'] = (self.host, self.port)
+        if not 'bind_addr' in self.options:
+            self.options['bind_addr'] = (self.host, self.port)
         self.options['wsgi_app'] = handler
         
         certfile = self.options.get('certfile')
@@ -2785,7 +2786,6 @@ class CherryPyServer(ServerAdapter):
         keyfile = self.options.get('keyfile')
         if keyfile:
             del self.options['keyfile']
-        
         server = wsgiserver.CherryPyWSGIServer(**self.options)
         if certfile:
             server.ssl_certificate = certfile

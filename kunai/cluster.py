@@ -86,6 +86,7 @@ class Cluster(object):
         'data': {'type':'path', 'mapto':'data_dir'},
         'libexec': {'type':'path', 'mapto':'libexec_dir'},
         'log': {'type':'path', 'mapto':'log_dir'},
+        'socket': {'type':'path', 'mapto':'socket_path'},
         'bootstrap': {'type':'bool', 'mapto':'bootstrap'},
         'seeds': {'type':'list', 'mapto':'seeds'},
         'tags': {'type':'list', 'mapto':'tags'},
@@ -145,6 +146,7 @@ class Cluster(object):
         self.data_dir = os.path.abspath('/var/lib/kunai/')
         self.log_dir = '/var/log/kunai'
         self.libexec_dir = '/var/lib/kunai/libexec'
+        self.socket_path = '$data$/kunai.sock'
         
         # Now look at the cfg_dir part
         if cfg_dir:
@@ -166,7 +168,7 @@ class Cluster(object):
                 mapto = d['mapto']
                 v = getattr(self, mapto).replace('$data$', self.data_dir)
                 setattr(self, mapto, v)
-           
+
         # We can start with a void data dir
         if not os.path.exists(self.data_dir):
             os.mkdir(self.data_dir)
@@ -858,10 +860,10 @@ class Cluster(object):
 
 
     def launch_listeners(self):
-        self.udp_thread = threader.create_and_launch(self.launch_udp_listener, name='udp-thread')
-        self.tcp_thread = threader.create_and_launch(self.launch_tcp_listener, name='tcp-thread')
-        self.webso_thread = threader.create_and_launch(self.launch_websocket_listener, name='websocket-thread')
-        self.dns_thread = threader.create_and_launch(self.launch_dns_listener, name='dns-thread')
+        self.udp_thread = threader.create_and_launch(self.launch_udp_listener, name='udp-thread', essential=True)
+        self.tcp_thread = threader.create_and_launch(self.launch_tcp_listener, name='tcp-thread', essential=True)
+        self.webso_thread = threader.create_and_launch(self.launch_websocket_listener, name='websocket-thread', essential=True)
+        self.dns_thread = threader.create_and_launch(self.launch_dns_listener, name='dns-thread', essential=True)
 
 
     def launch_udp_listener(self):
@@ -1474,8 +1476,8 @@ class Cluster(object):
                 return abort(400, 'BAD cid')
             return json.dumps(res)
         
-        # Now we export lot of URI we can start the daemon
-        httpdaemon.run(self.addr, self.port)
+        self.external_http_thread = threader.create_and_launch(httpdaemon.run, name='external-http-thread', args=(self.addr, self.port, ''), essential=True)
+        self.unixsocket_http_thread = threader.create_and_launch(httpdaemon.run, name='external-http-thread', args=('', 0, self.socket_path,), essential=True)
 
         
     # Launch an exec thread and save its uuid so we can keep a look at it then

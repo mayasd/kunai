@@ -47,19 +47,26 @@ class HttpDaemon(object):
         pass
 
 
-    def run(self, addr, port):
+    def run(self, addr, port, socket_path):
         # First enable cors on all our calls
         bapp = bottle.app()
         bapp.install(EnableCors())
 
-        # Will lock for in this
-        run(host=addr, port=port, server='cherrypy', numthreads=64)# 256?
+        if socket_path:
+            # Will lock for in this
+            # warning: without the str() cherrypy is not happy with the value, do not emove it
+            run(server='cherrypy', bind_addr=str(socket_path), numthreads=8) # not need for a lot of threads here
+        else:
+            # And this too but in another thread
+            run(host=addr, port=port, server='cherrypy', numthreads=64)# 256?
 
+            
     # Some default URI    
     @error(404)
     def err404(error):
         return ''
-        
+
+    
     @route('/')
     def slash():
         return 'OK'

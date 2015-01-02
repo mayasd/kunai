@@ -4,6 +4,7 @@ import traceback
 import cStringIO
 
 from kunai.log import logger
+from kunai.pubsub import pubsub
 
 # this part is doomed for windows portability, will be fun to manage :)
 try:
@@ -22,7 +23,7 @@ class ThreadMgr(object):
         self.all_threads = [t for t in self.all_threads if t.is_alive()]
 
 
-    def create_and_launch(self, f, args=(), name='unamed-thread'):
+    def create_and_launch(self, f, args=(), name='unamed-thread', essential=False):
         def w():
             tid = 0
             if libc:
@@ -35,6 +36,11 @@ class ThreadMgr(object):
                 traceback.print_exc(file=output)
                 logger.error("Thread %s is exiting on error. Back trace of this error: %s" % (name, output.getvalue()))
                 output.close()
+
+                # Maybe the thread WAS an essential one (like http thread or something like this), if so
+                # catch it and close the whole daemon
+                logger.error('The thread %s was an essential one, we are stopping the daemon do not be in an invalid state' % name)
+                pubsub.pub('interrupt')                
 
         # Create a daemon thread with our wrapper function that will manage initial logging
         # and exception catchs

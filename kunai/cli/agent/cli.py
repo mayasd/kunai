@@ -17,19 +17,31 @@ from kunai.cluster import Cluster
 from kunai.log import cprint, logger
 from kunai.version import VERSION
 
+from kunai.requests_unixsocket import monkeypatch
+
 
 # Will be populated by the shinken CLI command
 CONFIG = None
 
 
 
-HOSTNAME = socket.gethostname()
-
 ############# ********************        MEMBERS management          ****************###########
+
+def get_local_socket():
+    return CONFIG.get('socket', '/var/lib/kunai/kunai.sock').replace('/', '%2F')
+
+# Get on the local socket. Beware to monkeypatch the get
+def get_local(u):
+    with monkeypatch():
+        p = get_local_socket()
+        uri = 'http+unix://%s%s' % (p, u)
+        r = rq.get(uri)
+        return r
+    
 
 def do_members():
     try:
-        r = rq.get('http://%s:6768/agent/members' % HOSTNAME)
+        r = get_local('/agent/members')
     except rq.exceptions.ConnectionError, exp:
         logger.error(exp)
         return
@@ -57,16 +69,17 @@ def do_leave(name=''):
     # Lookup at the localhost name first
     if not name:
         try:
-            r = rq.get('http://%s:6768/agent/name' % HOSTNAME)
+            r = get_local('/agent/name')
         except rq.exceptions.ConnectionError, exp:
             logger.error(exp)
             return
         name = r.text
     try:
-        r = rq.get('http://%s:6768/agent/leave/%s' % (HOSTNAME, name))
+        r = get_local('/agent/leave/%s' % name)        
     except rq.exceptions.ConnectionError, exp:
         logger.error(exp)
         return
+    
     if r.status_code != 200:
         logger.error('Node %s is missing' % name)
         print r.text
@@ -76,11 +89,11 @@ def do_leave(name=''):
 
 
 def do_state(name=''):
-    uri = 'http://%s:6768/agent/state/%s' % (HOSTNAME, name)
+    uri = '/agent/state/%s' % name
     if not name:
-        uri = 'http://%s:6768/agent/state' % HOSTNAME
+        uri = '/agent/state'
     try:
-        r = rq.get(uri)
+        r = get_local(uri)
     except rq.exceptions.ConnectionError, exp:
         logger.error(exp)
         return
@@ -149,7 +162,7 @@ def do_join(seed=''):
         logger.error('Missing target argument. For example 192.168.0.1:6768')
         return
     try:
-        r = rq.get('http://%s:6768/agent/join/%s' % (HOSTNAME, seed))
+        r = get_local('/agent/join/%s' % seed)
     except rq.exceptions.ConnectionError, exp:
         logger.error(exp)
         return
@@ -194,7 +207,7 @@ def do_exec(tag='*', cmd='uname -a'):
         logger.error('Missing command')
         return
     try:
-        r = rq.get('http://%s:6768/exec/%s?cmd=%s' % (HOSTNAME, tag, cmd))
+        r = get_local('/exec/%s?cmd=%s' % (tag, cmd))
     except rq.exceptions.ConnectionError, exp:
         logger.error(exp)
         return
@@ -203,12 +216,12 @@ def do_exec(tag='*', cmd='uname -a'):
     print "Command group launch as cid", cid
     time.sleep(5) # TODO: manage a real way to get the result..
     try:
-        r = rq.get('http://%s:6768/exec-get/%s' % (HOSTNAME, cid))
+        r = get_local('/exec-get/%s' % cid)
     except rq.exceptions.ConnectionError, exp:
         logger.error(exp)
         return
     j = json.loads(r.text)
-    print j
+    #print j
     res = j['res']
     for (uuid, e) in res.iteritems():
         node = e['node']

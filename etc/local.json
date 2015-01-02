@@ -8,10 +8,11 @@
     "port"           : 6768,
     
     "data"           : "/var/lib/kunai",
-    "libexec"        : "$data$/libexec/",
+    "libexec"        : "/var/lib/kunai/libexec/",
     "log"            : "/var/log/kunai",
     "run"            : "/var/run/kunai",
     
+    "socket"         : "/var/lib/kunai/kunai.sock",
     
     "encryption_key" : "",
     "master_key_priv": "mfkey.priv",
