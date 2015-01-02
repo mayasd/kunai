@@ -263,7 +263,7 @@ setup(
 
 
 # if root is set, it's for package, so NO chown
-if pwd and not root and is_install:
+if not root and is_install:
     # Also change the rights of the kunai- scripts
     for s in scripts:
         bs = os.path.basename(s)
