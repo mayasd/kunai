@@ -281,4 +281,4 @@ for m in mod_need:
     except ImportError:
         print('\033[33mWarning: cannot import module %s. You must install if before launch the kunai deamon \033[0m' % m)
 
-print "Kunai setup done"
+print "\033[32mKunai install: OK\033[0m"
