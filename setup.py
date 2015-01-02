@@ -220,6 +220,11 @@ for path, subdirs, files in os.walk('libexec'):
 data_files.append( (default_paths['run'], []) )
 data_files.append( (default_paths['log'], []) )
 
+# Clean data files from all ~ emacs files :)
+nd = []
+for (r, files) in data_files:
+    nd.append( (r, [p for p in files if not p.endswith('~')] ) )
+data_files = nd
 
 not_allowed_options = ['--upgrade', '--update']
 for o in not_allowed_options:
