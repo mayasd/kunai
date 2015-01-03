@@ -1130,7 +1130,7 @@ class Cluster(object):
                  'port':self.port, 'socket':self.socket_path,
                  'uuid':self.uuid, 'graphite':self.graphite,
                  'statsd':self.statsd, 'websocket':self.websocket,
-                 'dns':self.dns, 'threads':threadmgr.get_info(),
+                 'dns':self.dns, 'threads':threader.get_info(),
             }
             if self.webso:
                 r['websocket_info'] = self.webso.get_info()
