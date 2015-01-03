@@ -1126,10 +1126,17 @@ class Cluster(object):
         @route('/agent/info')
         def get_info():
             response.content_type = 'application/json'
-            r = {'errors':[], 'pid':os.getpid()}
-            r['errors'] = logger.get_errors()
+            r = {'logs':logger.get_errors(), 'pid':os.getpid(), 'name':self.name,
+                 'port':self.port, 'socket':self.socket_path,
+                 'uuid':self.uuid, 'graphite':self.graphite,
+                 'statsd':self.statsd, 'websocket':self.websocket,
+                 'dns':self.dns,
+            }
+            if self.webso:
+                r['websocket_info'] = self.webso.get_info()
+            else:
+                r['websocket_info'] = None
             return r
-
 
             
         @route('/push-pull')

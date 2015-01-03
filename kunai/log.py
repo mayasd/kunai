@@ -45,7 +45,7 @@ class Logger(object):
 
         # We will keep last 20 errors
         self.last_errors_stack_size = 20
-        self.last_errors_stack = []
+        self.last_errors_stack = {'DEBUG':[], 'WARNING':[], 'INFO':[], 'ERROR':[]}
         
 
     def linkify_methods(self):
@@ -94,9 +94,9 @@ class Logger(object):
 
        # Not a perf problems as it's just for errors and a limited size
        if stack:
-           self.last_errors_stack.append(s)
+           self.last_errors_stack[stack].append(s)
            # And keep only the last 20 ones for example
-           self.last_errors_stack = self.last_errors_stack[-self.last_errors_stack_size:]
+           self.last_errors_stack[stack] = self.last_errors_stack[stack][-self.last_errors_stack_size:]
 
        # if no data_dir, we cannot save anything...
        if self.data_dir == '':
@@ -122,11 +122,11 @@ class Logger(object):
 
         
     def do_warning(self, *args, **kwargs):
-        self.log(*args, color='yellow', stack=True, **kwargs)        
+        self.log(*args, color='yellow', stack='WARNING', **kwargs)        
 
         
     def do_error(self, *args,  **kwargs):
-        self.log(*args, color='red', stack=True,  **kwargs)
+        self.log(*args, color='red', stack='ERROR',  **kwargs)
 
     
     def do_null(self, *args,  **kwargs):

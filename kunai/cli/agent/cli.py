@@ -135,7 +135,108 @@ def do_state(name=''):
 def do_version():
     cprint(VERSION)
 
+def print_info_title(title):
+    #t = title.ljust(15)
+    #s = '=================== %s ' % t
+    #s += '='*(50 - len(s))
+    #cprint(s)
+    print '========== [%s]:' % title
 
+
+def print_2tab(e):
+    col_size = 20
+    for (k, v) in e:
+        s = '%s: ' % k.capitalize()
+        s = s.ljust(col_size)
+        cprint(s, end='')
+        cprint(v, color='green')
+    
+    
+def do_info():
+    try:
+        r = get_local('/agent/info')
+    except rq.exceptions.ConnectionError, exp:
+        logger.error(exp)
+        return
+    try:
+        d = json.loads(r.text)
+    except ValueError, exp:# bad json
+        logger.error('Bad return from the server %s' % exp)
+        return
+    logs = d.get('logs')
+    pid = d.get('pid')
+    name = d.get('name')
+    port = d.get('port')
+    socket_path = d.get('socket')
+    _uuid = d.get('uuid')
+    graphite = d.get('graphite')
+    statsd = d.get('statsd')
+    websocket = d.get('websocket')
+    dns = d.get('dns')
+    e = [('name', name), ('uuid',_uuid), ('pid', pid), ('port',port), ('socket',socket_path)]
+
+    # Normal agent information
+    print_info_title('Kunai Daemon')
+    print_2tab(e)
+
+    # Now DNS part
+    print_info_title('DNS')
+    if dns is None:
+        cprint('No dns configured')
+    else:
+        w = dns
+        e = [('enabled', w['enabled']), ('port', w['port']), ('domain',w['domain']) ]
+        print_2tab(e)
+    
+    # Now websocket part
+    print_info_title('Websocket')
+    if websocket is None:
+        cprint('No websocket configured')
+    else:
+        w = websocket
+        st = d.get('websocket_info', None)
+        e = [('enabled', w['enabled']), ('port', w['port']) ]
+        if st:
+            e.append( ('Nb connexions', st.get('nb_connexions')) )
+        print_2tab(e)
+
+    # Now graphite part
+    print_info_title('Graphite')
+    if graphite is None:
+        cprint('No graphite configured')
+    else:
+        g = graphite
+        e = [('enabled', g['enabled']), ('port', g['port']), ('udp', g['udp']), ('tcp', g['tcp']) ]
+        print_2tab(e)
+
+    # Now statsd part
+    print_info_title('Statsd')
+    if statsd is None:
+        cprint('No statsd configured')
+    else:
+        s = statsd
+        e = [('enabled', s['enabled']), ('port', s['port']), ('interval', s['interval'])]
+        print_2tab(e)
+
+    print_info_title('Logs')
+    errors  = logs.get('ERROR')
+    warnings = logs.get('WARNING')
+    e = [ ('errors',len(errors)), ('warnings',len(warnings))]
+    print_2tab(e)
+
+    if len(errors) > 0:
+        print_info_title('Error logs')
+        for s in errors:
+            cprint(s, color='red')
+    
+    if len(warnings) > 0:
+        print_info_title('Warning logs')
+        for s in warnings:
+            cprint(s, color='yellow')
+        
+    logger.debug('Raw information: %s' % d)
+    
+    
     
     
 # Main daemon function. Currently in blocking mode only
@@ -266,6 +367,12 @@ exports = {
         'keywords': ['version'],
         'args': [],
         'description': 'Print the daemon version'
+        },
+
+    do_info : {
+        'keywords': ['info'],
+        'args': [],
+        'description': 'Show info af a daemon'
         },
 
     do_keygen : {

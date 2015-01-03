@@ -27,6 +27,10 @@ class WebSocketBackend(object):
 	self.server.serveforever()
 
 
+    def get_info(self):
+        return {'nb_connexions': len(self.server.connections)}
+    
+
     def send_all(self, o):
         try:
             msg = json.dumps(o)
