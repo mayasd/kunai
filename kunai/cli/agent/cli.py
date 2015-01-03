@@ -53,16 +53,20 @@ def do_members():
         logger.error('Bad return from the server %s' % exp)
         return
     members = sorted(members, key=lambda e:e['name'])
+    max_name_size = max([ len(m['name']) for m in members ])
+    max_addr_size = max([ len(m['addr']) + len(str(m['port'])) + 1 for m in members ])    
     for m in members:
         name = m['name']
         tags = m['tags']
         port = m['port']
         addr = m['addr']
         state = m['state']
-        cprint('%s ' % name, end='')
+        cprint('%s  ' % name.ljust(max_name_size), end='')
         c = {'alive':'green', 'dead':'red', 'suspect':'yellow', 'leave':'cyan'}.get(state, 'cyan')
         cprint(state, color=c, end='')
-        cprint(' %s:%s' % (addr, port), end='')
+        s = ' %s:%s ' % (addr, port)
+        s = s.ljust(max_addr_size+2) # +2 for the spaces
+        cprint(s, end='')
         cprint(' %s ' % ','.join(tags))        
 
 
