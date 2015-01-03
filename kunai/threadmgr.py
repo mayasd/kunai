@@ -21,7 +21,11 @@ class ThreadMgr(object):
 
     def check_alives(self):
         self.all_threads = [t for t in self.all_threads if t.is_alive()]                
-            
+
+
+    def get_info(self):
+        return {'nb_threads' : len(self.all_threads)}
+    
 
     def create_and_launch(self, f, args=(), name='unamed-thread', essential=False):
         def w(is_essential):
