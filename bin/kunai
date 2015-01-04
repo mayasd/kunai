@@ -58,7 +58,7 @@ class CLICommander(object):
         log_dir = config.get('log', '/var/lib/kunai')
         log_level = config.get('log_level', 'INFO')
         # early set the logger part
-        logger.load(log_dir, name)
+        logger.load(log_dir, '(cli)')
         logger.setLevel(log_level)
 
         # We will now try to load the keywords from the modules

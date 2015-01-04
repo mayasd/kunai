@@ -39,6 +39,23 @@ def get_local(u):
         uri = 'http+unix://%s%s' % (p, u)
         r = rq.get(uri)
         return r
+
+
+# get a json on the local server, and parse the result    
+def get_json(uri):
+    try:
+        r = get_local(uri)
+    except rq.exceptions.ConnectionError, exp:
+        logger.error('Cannot connect to local kunai daemon: %s' % exp)
+        sys.exit(1)
+    try:
+        d = json.loads(r.text)
+    except ValueError, exp:# bad json
+        logger.error('Bad return from the server %s' % exp)
+        sys.exit(1)        
+    return d
+    
+    
     
 
 def do_members():
@@ -153,16 +170,8 @@ def print_2tab(e):
     
     
 def do_info():
-    try:
-        r = get_local('/agent/info')
-    except rq.exceptions.ConnectionError, exp:
-        logger.error(exp)
-        return
-    try:
-        d = json.loads(r.text)
-    except ValueError, exp:# bad json
-        logger.error('Bad return from the server %s' % exp)
-        return
+    d = get_json('/agent/info')
+    
     logs = d.get('logs')
     pid = d.get('pid')
     name = d.get('name')

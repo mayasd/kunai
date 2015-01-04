@@ -89,7 +89,7 @@ KUNAI_DEFAULT_FILE="/etc/default/kunai"
 
 usage() {
     cat << END
-Usage: $NAME [ -d ] {start|stop|status|restart|reload|force-reload|check}
+Usage: $NAME [ -d ] {start|stop|status|restart|reload|force-reload}
 
  -d  start the daemon in debug mode, only useful with start|restart
 
@@ -138,7 +138,7 @@ do_status() {
     out=$(kunai info)
     rc=$?
     if [ $rc != 0 ]; then
-        log_failure_msg  "$NAME NOT RUNNING (cannot contact unix socket server)"
+        echo "$NAME NOT RUNNING (cannot contact unix socket server)"
         return 1
     fi
     echo "$NAME is running"
@@ -194,8 +194,7 @@ do_start_() {
     if [ $rc -eq 0 ]; then
         echo_success
     else
-        echo "$startoutput"
-        echo_failure
+        log_failure_msg "$startoutput"	
     fi
     return $rc
 }
@@ -214,7 +213,6 @@ do_stop_() {
     fi
     if [ $rc -ne 0 ]; then
         log_failure_msg "$failuremsg"
-        echo_failure
     else
         echo_success
     fi
@@ -230,7 +228,6 @@ do_restart_() {
         echo_success
     else
         log_failure_msg "$startoutput"
-        echo_failure
     fi
     return $rc
 }
@@ -250,19 +247,19 @@ do_reload_() {
         echo_success
     else
         log_failure_msg "$startoutput"
-        echo_failure
     fi
     return $rc
 }
 
+
 do_status_() {
-    echo  "Checking status of kunai"
-    do_status
+    echo "Checking status of kunai"
+    output=$(do_status)
     rc=$?
     if [ $rc -eq 0 ]; then
-        echo_success
+        echo_success $output
     else
-        echo_failure
+	log_failure_msg "$output"
     fi
 
 }
