@@ -5,7 +5,7 @@ import uuid
 import socket
 import time
 import json
-import requests as rq
+import signal
 
 from kunai.cluster import Cluster
 from kunai.log import cprint, logger
@@ -110,7 +110,9 @@ class Launcher(object):
         try:
             pid = os.fork()
         except OSError, e:
-            raise Exception, "%s [%d]" % (e.strerror, e.errno)
+            s = "%s [%d]" % (e.strerror, e.errno)
+            logger.error(s)
+            raise Exception, s
         
         if pid != 0:
             # In the father: we check if our child exit correctly
@@ -126,9 +128,9 @@ class Launcher(object):
             pid, status = os.waitpid(pid, 0)
             if status != 0:
                 logger.error("Something weird happened with/during second fork: status=", status)
-
+                os._exit(2)
             # In all case we will have to return
-            os._exit(status != 0)
+            os._exit(0)
         
         # halfway to daemonize..
         os.setsid()
