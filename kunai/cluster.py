@@ -66,7 +66,7 @@ from kunai.generator import Generator
 # now singleton objects
 from kunai.websocketmanager import websocketmgr
 from kunai.broadcast import broadcaster
-from kunai.httpdaemon import httpdaemon, route, error, response, request, abort
+from kunai.httpdaemon import httpdaemon, route, error, response, request, abort, gserver
 from kunai.pubsub import pubsub
 from kunai.dockermanager import dockermgr
 from kunai.encrypter import encrypter
@@ -1136,6 +1136,20 @@ class Cluster(object):
                 r['websocket_info'] = self.webso.get_info()
             else:
                 r['websocket_info'] = None
+
+            r['httpservers'] = {}
+            # Look at both httpservers
+            for (k, server) in gserver.iteritems():
+                if server is None:
+                    r['httpservers'][k] = None
+                    continue
+                # if available get stats
+                s = server.stats
+                nb_threads = s['Threads'](s)
+                idle_threads = s['Threads Idle'](s)
+                q = s['Queue'](s)
+                r['httpservers'][k] = {'nb_threads':nb_threads, 'idle_threads':idle_threads, 'queue':q}
+            
             return r
 
             

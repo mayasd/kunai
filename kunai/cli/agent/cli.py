@@ -168,18 +168,34 @@ def do_info():
     name = d.get('name')
     port = d.get('port')
     nb_threads = d.get('threads')['nb_threads']
+    httpservers = d.get('httpservers', {'internal':None, 'external':None})
     socket_path = d.get('socket')
     _uuid = d.get('uuid')
     graphite = d.get('graphite')
     statsd = d.get('statsd')
     websocket = d.get('websocket')
     dns = d.get('dns')
+
     e = [('name', name), ('uuid',_uuid), ('pid', pid), ('port',port), ('socket',socket_path), ('threads', nb_threads)]
 
     # Normal agent information
     print_info_title('Kunai Daemon')
     print_2tab(e)
 
+    # Normal agent information
+    int_server = httpservers['external']
+    if int_server:
+        e = (('threads', int_server['nb_threads']), ('idle_threads', int_server['idle_threads']), ('queue', int_server['queue']) )
+        print_info_title('HTTP (LAN)')
+        print_2tab(e)
+
+    # Unix socket http daemon
+    int_server = httpservers['internal']
+    if int_server:
+        e = (('threads', int_server['nb_threads']), ('idle_threads', int_server['idle_threads']), ('queue', int_server['queue']) )
+        print_info_title('HTTP (Unix Socket)')
+        print_2tab(e)
+        
     # Now DNS part
     print_info_title('DNS')
     if dns is None:

@@ -57,7 +57,7 @@ except ImportError: # pragma: no cover
 
 
 # to get a hook on the cherrypy part
-gserver = None
+gserver = {'external':None, 'internal':None}
 
 
 # We now try to fix 2.5/2.6/3.1/3.2 incompatibilities.
@@ -2776,7 +2776,9 @@ class CherryPyServer(ServerAdapter):
     def run(self, handler): # pragma: no cover
         global gserver
         from cherrypy import wsgiserver
+        _type = 'internal'
         if not 'bind_addr' in self.options:
+            _type = 'external'
             self.options['bind_addr'] = (self.host, self.port)
         self.options['wsgi_app'] = handler
         
@@ -2791,8 +2793,10 @@ class CherryPyServer(ServerAdapter):
             server.ssl_certificate = certfile
         if keyfile:
             server.ssl_private_key = keyfile
-        gserver = server
-
+        # Set in gserver our server, bot internal (unix socket)
+        # and external (tcp one)
+        gserver[_type] = server
+        
         try:
             server.start()
         finally:
