@@ -173,6 +173,7 @@ def do_info():
     d = get_json('/agent/info')
     
     logs = d.get('logs')
+    version = d.get('version')
     pid = d.get('pid')
     name = d.get('name')
     port = d.get('port')
@@ -185,7 +186,7 @@ def do_info():
     websocket = d.get('websocket')
     dns = d.get('dns')
 
-    e = [('name', name), ('uuid',_uuid), ('pid', pid), ('port',port), ('socket',socket_path), ('threads', nb_threads)]
+    e = [('name', name), ('uuid',_uuid), ('version', version), ('pid', pid), ('port',port), ('socket',socket_path), ('threads', nb_threads)]
 
     # Normal agent information
     print_info_title('Kunai Daemon')

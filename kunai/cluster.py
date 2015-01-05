@@ -70,6 +70,7 @@ from kunai.httpdaemon import httpdaemon, route, error, response, request, abort,
 from kunai.pubsub import pubsub
 from kunai.dockermanager import dockermgr
 from kunai.encrypter import encrypter
+from kunai.version import VERSION
 
 
 REPLICATS = 1
@@ -1131,6 +1132,7 @@ class Cluster(object):
                  'uuid':self.uuid, 'graphite':self.graphite,
                  'statsd':self.statsd, 'websocket':self.websocket,
                  'dns':self.dns, 'threads':threader.get_info(),
+                 'version':VERSION,
             }
             if self.webso:
                 r['websocket_info'] = self.webso.get_info()
