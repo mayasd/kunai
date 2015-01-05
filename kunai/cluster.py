@@ -1132,7 +1132,8 @@ class Cluster(object):
                  'uuid':self.uuid, 'graphite':self.graphite,
                  'statsd':self.statsd, 'websocket':self.websocket,
                  'dns':self.dns, 'threads':threader.get_info(),
-                 'version':VERSION,
+                 'version': VERSION,
+                 'docker':  dockermgr.get_info(),
             }
             if self.webso:
                 r['websocket_info'] = self.webso.get_info()

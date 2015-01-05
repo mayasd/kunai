@@ -32,6 +32,14 @@ class DockerManager(object):
         self.export_http()
 
         
+    def get_info(self):
+        r = {'enabled':     Client is not None,
+             'connected' :  self.con is not None,
+             'containers':  self.containers,
+        }
+        return r
+        
+        
     def launch(self):
         if not Client:
             logger.warning('Missing docker lib')

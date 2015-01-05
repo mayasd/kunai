@@ -185,6 +185,7 @@ def do_info():
     statsd = d.get('statsd')
     websocket = d.get('websocket')
     dns = d.get('dns')
+    _docker = d.get('docker')
 
     e = [('name', name), ('uuid',_uuid), ('version', version), ('pid', pid), ('port',port), ('socket',socket_path), ('threads', nb_threads)]
 
@@ -245,6 +246,13 @@ def do_info():
         e = [('enabled', s['enabled']), ('port', s['port']), ('interval', s['interval'])]
         print_2tab(e)
 
+    # Now statsd part
+    print_info_title('Docker')
+    _d = _docker
+    e = [('enabled', _d['enabled']), ('connected', _d['connected']), ('containers', len(_d['containers'])) ]
+    print_2tab(e)
+
+        
     print_info_title('Logs')
     errors  = logs.get('ERROR')
     warnings = logs.get('WARNING')
