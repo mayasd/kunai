@@ -160,10 +160,12 @@ def print_info_title(title):
     print '========== [%s]:' % title
 
 
-def print_2tab(e):
-    col_size = 20
+def print_2tab(e, capitalize=True, col_size=20):
     for (k, v) in e:
-        s = '%s: ' % k.capitalize()
+        label = k
+        if capitalize:
+            label = label.capitalize()
+        s = '%s: ' % label
         s = s.ljust(col_size)
         cprint(s, end='')
         cprint(v, color='green')
@@ -251,8 +253,8 @@ def do_info():
     _d = _docker
     e = [('enabled', _d['enabled']), ('connected', _d['connected']), ('containers', len(_d['containers'])) ]
     print_2tab(e)
-
-        
+    
+    # Show errors logs if any
     print_info_title('Logs')
     errors  = logs.get('ERROR')
     warnings = logs.get('WARNING')
@@ -270,6 +272,40 @@ def do_info():
             cprint(s, color='yellow')
         
     logger.debug('Raw information: %s' % d)
+    
+
+
+def do_docker_stats():
+    d = get_json('/docker/stats')
+    scontainers = d.get('containers')
+    simages     = d.get('images')
+
+    print_info_title('Docker Stats')
+    for (cid, stats) in scontainers.iteritems():
+        print_info_title('Container:%s' % cid)
+        keys = stats.keys()
+        keys.sort()
+        e = []
+        for k in keys:
+            sd = stats[k]
+            e.append( (k, sd['value']) )
+            
+        # Normal agent information
+        print_2tab(e, capitalize=False, col_size=30)
+
+    for (cid, stats) in simages.iteritems():
+        print_info_title('Image:%s (sum)' % cid)
+        keys = stats.keys()
+        keys.sort()
+        e = []
+        for k in keys:
+            sd = stats[k]
+            e.append( (k, sd['value']) )
+            
+        # Normal agent information
+        print_2tab(e, capitalize=False, col_size=30)
+
+
     
     
     
@@ -450,5 +486,12 @@ exports = {
             ],
         },
 
+    do_docker_stats : {
+        'keywords': ['docker_stats'],
+        'args': [],
+        'description': 'Show stats from docker containers and images'
+        },
+
+    
 
     }
