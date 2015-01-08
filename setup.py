@@ -279,7 +279,7 @@ if not root and is_install:
     _chmodplusx('/etc/init.d/kunai')
 
 
-mod_need = ['requests', 'cherrypy', 'leveldb']
+mod_need = ['requests', 'cherrypy', 'leveldb', 'jinja2']
 for m in mod_need:
     try:
         __import__(m)
