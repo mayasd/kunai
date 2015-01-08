@@ -107,7 +107,6 @@ class CgroupMgr(object):
             mounts = map(lambda x: x.split(), fp.read().splitlines())
         cgroup_mounts = filter(lambda x: x[2] == "cgroup", mounts)
         if len(cgroup_mounts) == 0:
-            logger.error('Cannot find mounted cgroups for docker monitoring')
             return ''
         # Old cgroup style
         if len(cgroup_mounts) == 1:
