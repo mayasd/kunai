@@ -8,18 +8,30 @@ import os
 import sys
 import base64
 import uuid
-import socket
+#import socket
 import time
 import json
-import requests as rq
+#import urllib2
+#import urllib
+#import httplib
+#from urlparse import urlsplit
+import socket
+try:
+    import requests as rq
+except ImportError:
+    rq = None
 
 from kunai.cluster import Cluster
 from kunai.log import cprint, logger
 from kunai.version import VERSION
 from kunai.launcher import Launcher
 
-# for local unix communication
-from kunai.requests_unixsocket import monkeypatch
+
+# If not requests we should exit because the
+# daemon cannot be in a good shape at all
+if rq is None:
+    logger.error('Missing python-requests lib, please install it')
+    sys.exit(2)
 
 
 # Will be populated by the shinken CLI command
@@ -27,36 +39,48 @@ CONFIG = None
 
 
 
-############# ********************        MEMBERS management          ****************###########
+
+
+from kunai.cli.unixhttp import urllib2, UnixHTTPConnection, UnixSocketHandler
+
+
+
+request_errors = (urllib2.URLError, rq.exceptions.ConnectionError)
 
 def get_local_socket():
-    return CONFIG.get('socket', '/var/lib/kunai/kunai.sock').replace('/', '%2F')
+    return CONFIG.get('socket', '/var/lib/kunai/kunai.sock')
 
 # Get on the local socket. Beware to monkeypatch the get
 def get_local(u):
-    with monkeypatch():
-        p = get_local_socket()
-        uri = 'http+unix://%s%s' % (p, u)
-        r = rq.get(uri)
-        return r
+    UnixHTTPConnection.socket_timeout = 5
+    url_opener = urllib2.build_opener(UnixSocketHandler())
+    p = get_local_socket()
+    uri = 'unix:/%s%s' % (p, u)
+    logger.debug("Connecting to local http unix socket at: %s" % uri)
+    req = urllib2.Request(uri, None)
+
+    request = url_opener.open(req)
+    response = request.read()
+    return response
 
 
 # get a json on the local server, and parse the result    
 def get_json(uri):
     try:
         r = get_local(uri)
-    except rq.exceptions.ConnectionError, exp:
+    except request_errors, exp:
         logger.error('Cannot connect to local kunai daemon: %s' % exp)
         sys.exit(1)
     try:
-        d = json.loads(r.text)
+        d = json.loads(r) # was r.text from requests
     except ValueError, exp:# bad json
         logger.error('Bad return from the server %s' % exp)
         sys.exit(1)        
     return d
     
     
-    
+
+############# ********************        MEMBERS management          ****************###########    
 
 def do_members():
     try:

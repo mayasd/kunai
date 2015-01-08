@@ -5,7 +5,6 @@ import json
 import uuid
 import imp
 import threading
-import argparse
 import time
 import random
 import math
@@ -28,12 +27,6 @@ import re
 import copy
 import cPickle
 
-try:
-    from Crypto.Cipher import AES
-    from Crypto.PublicKey import RSA
-except ImportError:
-    AES = None
-    RSA = None
 
 from kunai.log import logger
 from kunai.threadmgr import threader
