@@ -41,7 +41,6 @@ def ok_nodes(service=''):
 class Generator(object):
     def __init__(self, g):
         self.g = g
-        print "LAUNCHING"*10, g
         self.buf = None
         self.template = None
         self.output = None
@@ -68,10 +67,16 @@ class Generator(object):
         node = copy.copy(clust.nodes[clust.uuid])
         with clust.gossip.nodes_lock:
             nodes = copy.copy(clust.nodes) # just copy the dict, not the nodes themselves
+
             
         # Now try to make it a jinja template object
         try:
-            env = jinja2.Environment(trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True, )
+            env = jinja2.Environment(trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True)
+        except TypeError: # old jinja2 version do not manage keep_trailing_newline nor
+            # lstrip_blocks (like in redhat6)
+            env = jinja2.Environment(trim_blocks=True)
+            
+        try:
             self.template = env.from_string(self.buf)
         except Exception, exp:
             logger.error('Template file %s did raise an error with jinja2 : %s' % (self.g['template'], exp))
