@@ -85,7 +85,7 @@ def get_json(uri):
 def do_members():
     try:
         r = get_local('/agent/members')
-    except rq.exceptions.ConnectionError, exp:
+    except request_errors, exp:
         logger.error(exp)
         return
     try:
@@ -117,13 +117,13 @@ def do_leave(name=''):
     if not name:
         try:
             r = get_local('/agent/name')
-        except rq.exceptions.ConnectionError, exp:
+        except request_errors, exp:
             logger.error(exp)
             return
         name = r.text
     try:
         r = get_local('/agent/leave/%s' % name)        
-    except rq.exceptions.ConnectionError, exp:
+    except request_errors, exp:
         logger.error(exp)
         return
     
@@ -141,7 +141,7 @@ def do_state(name=''):
         uri = '/agent/state'
     try:
         r = get_local(uri)
-    except rq.exceptions.ConnectionError, exp:
+    except request_errors, exp:
         logger.error(exp)
         return
 
@@ -348,7 +348,7 @@ def do_start(daemon):
 def do_stop():
     try:
         r = get_local('/stop')
-    except rq.exceptions.ConnectionError, exp:
+    except request_errors, exp:
         logger.error(exp)
         return
     cprint(r.text, color='green')
@@ -361,7 +361,7 @@ def do_join(seed=''):
         return
     try:
         r = get_local('/agent/join/%s' % seed)
-    except rq.exceptions.ConnectionError, exp:
+    except request_errors, exp:
         logger.error(exp)
         return
     try:
@@ -406,7 +406,7 @@ def do_exec(tag='*', cmd='uname -a'):
         return
     try:
         r = get_local('/exec/%s?cmd=%s' % (tag, cmd))
-    except rq.exceptions.ConnectionError, exp:
+    except request_errors, exp:
         logger.error(exp)
         return
     print r
@@ -415,7 +415,7 @@ def do_exec(tag='*', cmd='uname -a'):
     time.sleep(5) # TODO: manage a real way to get the result..
     try:
         r = get_local('/exec-get/%s' % cid)
-    except rq.exceptions.ConnectionError, exp:
+    except request_errors, exp:
         logger.error(exp)
         return
     j = json.loads(r.text)
