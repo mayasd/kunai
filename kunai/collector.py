@@ -49,29 +49,20 @@ class Collector:
         logger.debug('execute_shell:: %s' % cmd)
         output = ''
         try:
+            proc = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE, close_fds=True)
+            logger.debug('PROC LAUNCHED', proc)
+            output, err = proc.communicate()
+            logger.debug('OUTPUT, ERR', output, err)
             try:
-                proc = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE, close_fds=True)
-                output, err = proc.communicate()
-                if int(pythonVersion[1]) >= 6:
-                    try:
-                        proc.kill()
-                    except Exception, e:
-                        pass
-                if err:
-                    logger.error('Error in sub process', err)
-
+                proc.kill()
             except Exception, e:
-                logger.error('execute_shell exception = %s', traceback.format_exc())
-                return False
-
-        finally:
-            if int(pythonVersion[1]) >= 6:
-                try:
-                    proc.kill()
-                except Exception, e:
-                    #logger.debug('Process already terminated')
-                    pass
-            return output
+                pass
+            if err:
+                logger.error('Error in sub process', err)
+        except Exception, e:
+            logger.error('execute_shell exception = %s' % traceback.format_exc())
+            return False
+        return output
 
 
     # from a dict recursivly build a ts
@@ -109,5 +100,5 @@ class Collector:
         #logger.debug('COLRESULT', r, self.__class__.__name__.lower())
         s = set()
         self.create_ts_from_data(r, [], s)
-        print "TSS=", s
+        print "TSS=", self.__class__.__name__.lower(), s
         

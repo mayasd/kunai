@@ -29,15 +29,15 @@ class DiskUsage(Collector):
         # Split out each volume
         volumes = df.split('\n')
 
-        #logger.debug('getDiskUsage: parsing, split')
+        logger.debug('getDiskUsage: parsing, split')
 
         # Remove first (headings) and last (blank)
         volumes.pop(0)
         volumes.pop()
 
-        #logger.debug('getDiskUsage: parsing, pop')
+        logger.debug('getDiskUsage: parsing, pop')
 
-        usageData = []
+        usageData = {}
 
         regexp = re.compile(r'([0-9]+)')
 
@@ -48,8 +48,8 @@ class DiskUsage(Collector):
         #logger.debug('getDiskUsage: parsing, start loop')
 
         for volume in volumes:
-            #logger.debug('getDiskUsage: parsing volume: %s', volume)
-
+            logger.debug('getDiskUsage: parsing volume: %s' % volume)
+            
             # Split out the string
             volume = volume.split(None, 10)
 
@@ -70,16 +70,21 @@ class DiskUsage(Collector):
             # so we just get rid of it
             # Also ignores lines with no values
             if re.match(regexp, volume[1]) == None or re.match(regexp, volume[2]) == None or re.match(regexp, volume[3]) == None:
-                pass
+                logger.debug('invalid volume', volume, re.match(regexp, volume[1]), re.match(regexp, volume[2]), re.match(regexp, volume[3]))
             else:
-                #print "DUMPING VOLUME", volume
+                d = {}                
+                print "DUMPING VOLUME", volume
                 try:
                     volume[1] = int(volume[1]) / 1024  # total
                     volume[2] = int(volume[2]) / 1024  # Used
                     volume[3] = int(volume[3]) / 1024  # Available
                 except Exception, e:
                     logger.error('getDiskUsage: parsing, loop %s - Used or Available not present' % (repr(e),))
-                usageData.append(volume)
+                d['total'] = volume[1]
+                d['used']  = volume[2]
+                d['pct_used'] = int(volume[4].replace('%',''))
+                usageData[volume[5]] = d
+                #usageData.append(volume)
 
         return usageData
 
