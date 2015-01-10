@@ -192,10 +192,17 @@ def print_2tab(e, capitalize=True, col_size=20):
         s = '%s: ' % label
         s = s.ljust(col_size)
         cprint(s, end='')
-        cprint(v, color='green')
+        # If it's a dict, we got additiionnal data like color or type
+        if isinstance(v, dict):
+            color = v.get('color', 'green')
+            _type = v.get('type', 'std')
+            value = v.get('value')
+            cprint(value, color=color)
+        else:
+            cprint(v, color='green')
     
     
-def do_info():
+def do_info(show_logs):
     d = get_json('/agent/info')
     
     logs = d.get('logs')
@@ -212,6 +219,7 @@ def do_info():
     websocket = d.get('websocket')
     dns = d.get('dns')
     _docker = d.get('docker')
+    collectors = d.get('collectors')
 
     e = [('name', name), ('uuid',_uuid), ('version', version), ('pid', pid), ('port',port), ('socket',socket_path), ('threads', nb_threads)]
 
@@ -272,6 +280,12 @@ def do_info():
         e = [('enabled', s['enabled']), ('port', s['port']), ('interval', s['interval'])]
         print_2tab(e)
 
+    # Now collectors part
+    print_info_title('Collectors')
+    e = [(k, v['active']) for (k,v) in collectors.iteritems()]
+    print_2tab(e)
+    
+
     # Now statsd part
     print_info_title('Docker')
     _d = _docker
@@ -282,18 +296,30 @@ def do_info():
     print_info_title('Logs')
     errors  = logs.get('ERROR')
     warnings = logs.get('WARNING')
-    e = [ ('errors',len(errors)), ('warnings',len(warnings))]
+ 
+    # Put warning and errors in red/yellow if need only
+    e = []
+    if len(errors) > 0:
+        e.append( ('error', {'value':len(errors), 'color':'red'}) )
+    else:
+        e.append( ('error', len(errors)) )
+    if len(warnings) > 0:
+        e.append( ('warning', {'value':len(warnings), 'color':'yellow'}) )
+    else:
+        e.append( ('warning', len(warnings)) )
+
     print_2tab(e)
 
-    if len(errors) > 0:
-        print_info_title('Error logs')
-        for s in errors:
-            cprint(s, color='red')
+    if show_logs:
+        if len(errors) > 0:
+            print_info_title('Error logs')
+            for s in errors:
+                cprint(s, color='red')
     
-    if len(warnings) > 0:
-        print_info_title('Warning logs')
-        for s in warnings:
-            cprint(s, color='yellow')
+        if len(warnings) > 0:
+            print_info_title('Warning logs')
+            for s in warnings:
+                cprint(s, color='yellow')
         
     logger.debug('Raw information: %s' % d)
     
@@ -466,7 +492,9 @@ exports = {
 
     do_info : {
         'keywords': ['info'],
-        'args': [],
+        'args': [
+            {'name' : '--show-logs', 'default':False, 'description':'Dump last warning & error logs', 'type':'bool'},
+            ],
         'description': 'Show info af a daemon'
         },
 

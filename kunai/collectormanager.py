@@ -73,6 +73,7 @@ class CollectorManager:
             'next_check': int(time.time()) + int(random.random())*10,
             'results': None,
             'metrics': None,
+            'active' : False,
             }
         self.collectors[colname] = e
         
@@ -82,11 +83,26 @@ class CollectorManager:
         get_collectors(self)
         
 
+    def get_info(self):
+        res = {}
+        with self.results_lock:
+            for (cname, e) in self.collectors.iteritems():
+                d = {'name':e['name'], 'active':e['active']}
+                res[cname] = d
+        return res
+            
+
+
     # Our collector threads will put back results so beware of the threads
     def put_result(self, cname, results, metrics):
         if cname in self.collectors:
-            self.collectors[cname]['results'] = results
-            self.collectors[cname]['metrics'] = metrics
+            if results:
+                self.collectors[cname]['results'] = results
+                self.collectors[cname]['metrics'] = metrics
+                self.collectors[cname]['active']  = True
+            else:
+                self.collectors[cname]['active']  = False
+            
         
 
     # Main thread for launching collectors
