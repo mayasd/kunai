@@ -72,7 +72,7 @@ class Collector:
             if isinstance(d, basestring):
                 #print "REFUSING BAD VALUE", d
                 return
-            if isinstance(d, float) or isinstance(d, int):
+            if isinstance(d, float) or isinstance(d, int) or isinstance(d, long):
                 #print "FINISH HIM!"
                 _t = l[:]
                 #_t.append(d)

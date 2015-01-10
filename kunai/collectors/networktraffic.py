@@ -75,22 +75,22 @@ class NetworkTraffic(Collector):
                         interfaces[key]['recv_bytes/s'] = interfaces[key]['recv_bytes'] / 10
                         interfaces[key]['trans_bytes/s'] = interfaces[key]['trans_bytes'] / 10
 
-                        interfaces[key]['recv_bytes'] = str(interfaces[key]['recv_bytes'])
-                        interfaces[key]['trans_bytes'] = str(interfaces[key]['trans_bytes'])
+                        interfaces[key]['recv_bytes'] = long(interfaces[key]['recv_bytes'])
+                        interfaces[key]['trans_bytes'] = long(interfaces[key]['trans_bytes'])
 
 
                         # And update the stored value to subtract next time round
-                        self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
-                        self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
+                        self.networkTrafficStore[key]['recv_bytes'] = long(faces[face]['recv_bytes'])
+                        self.networkTrafficStore[key]['trans_bytes'] = long(faces[face]['trans_bytes'])
 
                     else:
                         self.networkTrafficStore[key] = {}
-                        self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
-                        self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
+                        self.networkTrafficStore[key]['recv_bytes'] = long(faces[face]['recv_bytes'])
+                        self.networkTrafficStore[key]['trans_bytes'] = long(faces[face]['trans_bytes'])
 
                     # Logging
-                    logger.debug('getNetworkTraffic: %s = %s', key, self.networkTrafficStore[key]['recv_bytes'])
-                    logger.debug('getNetworkTraffic: %s = %s', key, self.networkTrafficStore[key]['trans_bytes'])
+                    logger.debug('getNetworkTraffic: %s = %s' %  (key, self.networkTrafficStore[key]['recv_bytes']) )
+                    logger.debug('getNetworkTraffic: %s = %s' % (key, self.networkTrafficStore[key]['trans_bytes']) )
 
                 except KeyError, ex:
                     logger.error('getNetworkTraffic: no data for %s', key)
@@ -99,7 +99,6 @@ class NetworkTraffic(Collector):
                     logger.error('getNetworkTraffic: invalid data for %s', key)
 
             logger.debug('getNetworkTraffic: completed, returning')
-
             return interfaces
 
         elif sys.platform.find('freebsd') != -1:

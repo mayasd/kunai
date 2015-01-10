@@ -73,7 +73,6 @@ class DiskUsage(Collector):
                 logger.debug('invalid volume', volume, re.match(regexp, volume[1]), re.match(regexp, volume[2]), re.match(regexp, volume[3]))
             else:
                 d = {}                
-                print "DUMPING VOLUME", volume
                 try:
                     volume[1] = int(volume[1]) / 1024  # total
                     volume[2] = int(volume[2]) / 1024  # Used
