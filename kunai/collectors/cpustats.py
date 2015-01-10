@@ -1,4 +1,3 @@
-import httplib # Used only for handling httplib.HTTPException (case #26701)
 import os
 import sys
 import platform
@@ -29,15 +28,10 @@ class CpuStats(Collector):
             valueRegexp = re.compile(r'\d+\.\d+')
             proc = None
             try:
-                proc = subprocess.Popen(['mpstat', '-P', 'ALL', '1', '1'], stdout=subprocess.PIPE, close_fds=True)
-                stats = proc.communicate()[0]
-
-                if int(self.pythonVersion[1]) >= 6:
-                    try:
-                        proc.kill()
-                    except Exception, e:
-                        logger.debug('Process already terminated')
-
+                cmd = 'mpstat -P ALL 1 1'
+                stats = self.execute_shell(cmd)
+                if not stats:
+                    return None
                 stats = stats.split('\n')
                 header = stats[2]
                 headerNames = re.findall(headerRegexp, header)
@@ -59,22 +53,9 @@ class CpuStats(Collector):
                     cpuStats[device] = {}
                     for headerIndex in range(0, len(headerNames)):
                         headerName = headerNames[headerIndex]
-                        cpuStats[device][headerName] = values[headerIndex]
-
-            except OSError, ex:
-                # we dont have it installed return nothing
-                return False
+                        cpuStats[device][headerName] = float(values[headerIndex])
 
             except Exception, ex:
-                if int(self.pythonVersion[1]) >= 6:
-                    try:
-                        if proc:
-                            proc.kill()
-                    except UnboundLocalError, e:
-                        logger.debug('Process already terminated')
-                    except Exception, e:
-                        logger.debug('Process already terminated')
-
                 logger.error('getCPUStats: exception = %s', traceback.format_exc())
                 return False
         else:
