@@ -105,6 +105,7 @@ class CollectorManager:
                    t = threader.create_and_launch(inst.main, name='collector-%s' % colname)
                    cur_launchs[colname] = t
                    e['next_check'] += 10
+                   e['last_check'] = now
 
            to_del = []
            for (colname, t) in cur_launchs.iteritems():
@@ -130,7 +131,6 @@ class CollectorManager:
                 # insta are not serializable
                 del c['inst']
                 res[c['name']] = c
-            print 'RES', res
             return json.dumps(res)
 
         
