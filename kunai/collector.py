@@ -80,7 +80,7 @@ class Collector:
                 _t = l[:]
                 #_t.append(d)
                 _nts = '.'.join(_t)#ts, d)
-                nts = '%s %s' % (_nts, d)
+                nts = '%s %s' % (_nts.lower(), d)
                 s.add(nts)
             return
         # For each key,
@@ -97,11 +97,10 @@ class Collector:
         try:
             r = self.launch()
         except Exception, exp:
-            logger.error('Collector %s main error: %s' (self.__class__.__name__.lower(), traceback.format_exc()))
+            logger.error('Collector %s main error: %s' % (self.__class__.__name__.lower(), traceback.format_exc()))
             return
         #logger.debug('COLRESULT', r, self.__class__.__name__.lower())
         s = set()
         self.create_ts_from_data(r, [], s)
-        print "TSS=", self.__class__.__name__.lower(), s
         if self.put_result:
-            self.put_result(self.__class__.__name__.lower(), list(s))
+            self.put_result(self.__class__.__name__.lower(), r, list(s))

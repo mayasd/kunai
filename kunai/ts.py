@@ -17,6 +17,7 @@ from kunai.stats import STATS
 from kunai.log import logger
 from kunai.threadmgr import threader
 from kunai.now import NOW
+from kunai.util import to_best_int_float
 
 
 # Will have to forward to graphit intead
@@ -149,18 +150,6 @@ class TSListener(object):
    def list_keys(self, key):
       return self.tsb.list_keys(key)
    
-
-   def to_best_int_float(self, val):
-      try:
-         i = int(float(val))
-         f = float(val)
-      except ValueError:
-         return None
-      # If the f is a .0 value,
-      # best match is int
-      if i == f:
-         return i
-      return f
 
 
    # The compute stats thread compute the STATSD values each X
@@ -323,7 +312,7 @@ class TSListener(object):
                   continue
 
                # Here we are sure it's really for us, so manage it :)
-               value = self.to_best_int_float(_nvs[1].strip())
+               value = to_best_int_float(_nvs[1].strip())
                if not mname or value is None:
                   continue
 
@@ -488,7 +477,7 @@ class TSListener(object):
                  timestamp = int(timestamp)
              except ValueError:
                  return
-             value = self.to_best_int_float(value)
+             value = to_best_int_float(value)
              if value is None:
                  continue
              self.tsb.add_value(timestamp, mname, value)

@@ -1,4 +1,3 @@
-import httplib # Used only for handling httplib.HTTPException (case #26701)
 import os
 import platform
 import re
@@ -6,11 +5,14 @@ import urllib
 import urllib2
 import traceback
 import time
+import urlparse
+import datetime
 from StringIO import StringIO
 
 
 from kunai.log import logger
 from kunai.collector import Collector
+from kunai.util import to_best_int_float
 
 
 class Mongodb(Collector):
@@ -19,7 +21,7 @@ class Mongodb(Collector):
 
         if 'MongoDBServer' not in self.config or self.config['MongoDBServer'] == '':
             logger.debug('getMongoDBStatus: config not set')
-            return False
+            #return False
 
         logger.debug('getMongoDBStatus: config set')
 
@@ -35,35 +37,23 @@ class Mongodb(Collector):
         mongodb = {}
 
         try:
-            import urlparse
-            parsed = urlparse.urlparse(self.config['MongoDBServer'])
-
+            parsed = urlparse.urlparse(self.config.get('mongodb_server', 'mongodb://localhost'))
             mongoURI = ''
-
+            
             # Can't use attributes on Python 2.4
             if parsed[0] != 'mongodb':
-
                 mongoURI = 'mongodb://'
-
                 if parsed[2]:
-
                     if parsed[0]:
-
                         mongoURI = mongoURI + parsed[0] + ':' + parsed[2]
-
                     else:
                         mongoURI = mongoURI + parsed[2]
-
             else:
-
-                mongoURI = self.config['MongoDBServer']
+                mongoURI = self.config.get('mongodb_server', 'mongodb://localhost')
 
             logger.debug('-- mongoURI: %s', mongoURI)
-
             conn = Connection(mongoURI, slave_okay=True)
-
             logger.debug('Connected to MongoDB')
-
         except Exception, ex:
             logger.error('Unable to connect to MongoDB server %s - Exception = %s', mongoURI, traceback.format_exc())
             return False
@@ -79,7 +69,7 @@ class Mongodb(Collector):
             logger.debug('getMongoDBStatus: executed serverStatus')
 
             # Setup
-            import datetime
+
             status = {}
 
             # Version
@@ -105,7 +95,7 @@ class Mongodb(Collector):
                 status['globalLock']['currentQueue']['writers'] = statusOutput['globalLock']['currentQueue']['writers']
 
             except KeyError, ex:
-                logger.error('getMongoDBStatus: globalLock KeyError exception = %s', ex)
+                logger.debug('getMongoDBStatus: globalLock KeyError exception = %s' % ex)
                 pass
 
             # Memory
@@ -118,7 +108,7 @@ class Mongodb(Collector):
                 status['mem']['mapped'] = statusOutput['mem']['mapped']
 
             except KeyError, ex:
-                logger.error('getMongoDBStatus: memory KeyError exception = %s', ex)
+                logger.debug('getMongoDBStatus: memory KeyError exception = %s', ex)
                 pass
 
             # Connections
@@ -130,7 +120,7 @@ class Mongodb(Collector):
                 status['connections']['available'] = statusOutput['connections']['available']
 
             except KeyError, ex:
-                logger.error('getMongoDBStatus: connections KeyError exception = %s', ex)
+                logger.debug('getMongoDBStatus: connections KeyError exception = %s', ex)
                 pass
 
             # Extra info (Linux only)
@@ -199,7 +189,7 @@ class Mongodb(Collector):
                         self.setMongoDBStore(statusOutput)
 
             except KeyError, ex:
-                logger.error('getMongoDBStatus: per second metrics KeyError exception = %s', ex)
+                logger.debug('getMongoDBStatus: per second metrics KeyError exception = %s' % ex)
                 pass
 
             # Cursors
@@ -210,7 +200,7 @@ class Mongodb(Collector):
                 status['cursors']['totalOpen'] = statusOutput['cursors']['totalOpen']
 
             except KeyError, ex:
-                logger.error('getMongoDBStatus: cursors KeyError exception = %s', ex)
+                logger.debug('getMongoDBStatus: cursors KeyError exception = %s' % ex)
                 pass
 
             # Replica set status
@@ -239,7 +229,6 @@ class Mongodb(Collector):
                 logger.debug('getMongoDBStatus: executed replSetGetStatus')
 
                 status['replSet']['myState'] = replSet['myState']
-
                 status['replSet']['members'] = {}
 
                 for member in replSet['members']:
@@ -247,10 +236,9 @@ class Mongodb(Collector):
                     logger.debug('getMongoDBStatus: replSetGetStatus looping %s', member['name'])
 
                     status['replSet']['members'][str(member['_id'])] = {}
-
                     status['replSet']['members'][str(member['_id'])]['name'] = member['name']
                     status['replSet']['members'][str(member['_id'])]['state'] = member['state']
-
+                    
                     # Optime delta (only available from not self)
                     # Calculation is from http://docs.python.org/library/datetime.html#datetime.timedelta.total_seconds
                     if 'optimeDate' in member: # Only available as of 1.7.2
@@ -270,24 +258,24 @@ class Mongodb(Collector):
                         status['replSet']['members'][str(member['_id'])]['error'] = member['errmsg']
 
             # db.stats()
-            if 'MongoDBDBStats' in self.config and self.config['MongoDBDBStats'] == 'yes':
+            if True: # or ('MongoDBDBStats' in self.config and self.config['MongoDBDBStats'] == 'yes':
                 logger.debug('getMongoDBStatus: db.stats() too')
-
+                
                 status['dbStats'] = {}
-
+                
                 for database in conn.database_names():
-
                     if database != 'config' and database != 'local' and database != 'admin' and database != 'test':
-
                         logger.debug('getMongoDBStatus: executing db.stats() for %s', database)
-
                         status['dbStats'][database] = conn[database].command('dbstats')
                         status['dbStats'][database]['namespaces'] = conn[database]['system']['namespaces'].count()
 
                         # Ensure all strings to prevent JSON parse errors. We typecast on the server
                         for key in status['dbStats'][database].keys():
                             status['dbStats'][database][key] = str(status['dbStats'][database][key])
-
+                            # try a float/int cast
+                            v = to_best_int_float(status['dbStats'][database][key])
+                            if v is not None:
+                                status['dbStats'][database][key] = v
 
         except Exception, ex:
             logger.error('Unable to get MongoDB status - Exception = %s', traceback.format_exc())
