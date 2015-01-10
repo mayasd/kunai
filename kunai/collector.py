@@ -10,7 +10,6 @@ from kunai.now import NOW
 
 
 pythonVersion = platform.python_version_tuple()
-python24 = platform.python_version().startswith('2.4')
 
 
 class Collector:
