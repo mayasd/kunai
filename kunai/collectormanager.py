@@ -72,6 +72,7 @@ class CollectorManager:
             'last_check': 0,
             'next_check': int(time.time()) + int(random.random())*10,
             'results': None,
+            'metrics': None,
             }
         self.collectors[colname] = e
         
@@ -82,9 +83,10 @@ class CollectorManager:
         
 
     # Our collector threads will put back results so beware of the threads
-    def put_result(self, cname, res):
+    def put_result(self, cname, results, metrics):
         if cname in self.collectors:
-            self.collectors[cname]['results'] = res
+            self.collectors[cname]['results'] = results
+            self.collectors[cname]['metrics'] = metrics
         
 
     # Main thread for launching collectors
@@ -121,24 +123,33 @@ class CollectorManager:
     # main method to export http interface. Must be in a method that got
     # a self entry
     def export_http(self):
+
+        def prepare_entry(e):
+            c = copy.copy(e)
+            # insta are not serializable
+            del c['inst']
+            return (c['name'], c)
+            
+
         @route('/collectors/')
         @route('/collectors')
         def get_collectors():
             response.content_type = 'application/json'
             res = {}
             for (ccls, e) in self.collectors.iteritems():
-                c = copy.copy(e)
-                # insta are not serializable
-                del c['inst']
-                res[c['name']] = c
+                cname, c = prepare_entry(e)
+                res[cname] = c
             return json.dumps(res)
 
         
         @route('/collectors/:_id')
         def get_container(_id):
             response.content_type = 'application/json'
-            cont = self.collectors.get(_id, None)
-            return json.dumps(cont)
+            e = self.collectors.get(_id, None)
+            if e is None:
+                return json.dumps(e)
+            cname, c = prepare_entry(e)
+            return json.dumps(c)
     
        
 

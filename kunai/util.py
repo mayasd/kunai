@@ -18,3 +18,15 @@ def copy_dir(source_item, destination_item):
        shutil.copy(source_item, destination_item)
 
 
+
+def to_best_int_float(val):
+   try:
+      i = int(float(val))
+      f = float(val)
+   except ValueError:
+      return None
+   # If the f is a .0 value,
+      # best match is int
+   if i == f:
+      return i
+   return f
