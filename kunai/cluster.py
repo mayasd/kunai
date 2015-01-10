@@ -1119,6 +1119,7 @@ class Cluster(object):
                  'dns':self.dns, 'threads':threader.get_info(),
                  'version': VERSION,
                  'docker':  dockermgr.get_info(),
+                 'collectors': collectormgr.get_info(),
             }
             if self.webso:
                 r['websocket_info'] = self.webso.get_info()
