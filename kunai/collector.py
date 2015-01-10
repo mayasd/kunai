@@ -25,7 +25,7 @@ class Collector:
         return cls.__inheritors__
 
     
-    def __init__(self, config):
+    def __init__(self, config, put_result=None):
         self.config = config
         self.pythonVersion = pythonVersion
         
@@ -40,6 +40,9 @@ class Collector:
         self.topIndex = 0
         self.os = None
         self.linuxProcFsLocation = None
+
+        # The manager all back
+        self.put_result = put_result
 
 
     # Execute a shell command and return the result or '' if there is an error
@@ -100,4 +103,5 @@ class Collector:
         s = set()
         self.create_ts_from_data(r, [], s)
         print "TSS=", self.__class__.__name__.lower(), s
-        
+        if self.put_result:
+            self.put_result(self.__class__.__name__.lower(), list(s))
