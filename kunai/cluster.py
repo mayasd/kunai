@@ -59,7 +59,6 @@ from kunai.threadmgr import threader
 from kunai.perfdata import PerfDatas
 from kunai.now import NOW
 from kunai.collector import Collector
-from kunai.collectors import get_collectors
 from kunai.gossip import Gossip
 from kunai.generator import Generator
 # now singleton objects
@@ -69,7 +68,9 @@ from kunai.httpdaemon import httpdaemon, route, error, response, request, abort,
 from kunai.pubsub import pubsub
 from kunai.dockermanager import dockermgr
 from kunai.encrypter import encrypter
+from kunai.collectormanager import collectormgr
 from kunai.version import VERSION
+from kunai.stop import stopper
 
 
 REPLICATS = 1
@@ -336,11 +337,10 @@ class Cluster(object):
         self.execs = {}
         # Challenge send so we can match the response when we will get them
         self.challenges = {}
-
-        # Load all collectors
-        self.collectors = {}
-        get_collectors(self)        
-
+        
+        # Load all collectors globaly
+        collectormgr.load_collectors(self.cfg_data)
+        
         # Load docker thing if possible
         dockermgr.launch()
         
@@ -791,22 +791,6 @@ class Cluster(object):
        self.update_checks_kv()
 
 
-    def load_collector(self, cls):
-        colname = cls.__name__.lower()
-        logger.debug('Loading collector %s from class %s' % (colname, cls))
-        try:
-            inst = cls(self.cfg_data)
-        except Exception, exp:
-            
-            logger.error('Cannot load the %s collector: %s' % (cls, traceback.format_exc()))
-            return
-        e = {
-            'name': colname,
-            'inst': inst,
-            'last_check': 0,
-            'next_check': int(time.time()) + int(random.random())*10,
-            }
-        self.collectors[cls] = e
 
 
     # What to do when we receive a signal from the system
@@ -817,13 +801,15 @@ class Cluster(object):
         elif sig == signal.SIGUSR2: # if USR2, ask objects dump
             logger.log('MANAGE USR2')
         else:  # Ok, really ask us to die :)
-            self.interrupted = True
+            self.set_interrupted()
 
             
     # Callback for objects that want us to stop in a clean way
     def set_interrupted(self):
         self.interrupted = True
-    
+        # and the global object too
+        stopper.interrupted = True
+        
 
     def set_exit_handler(self):
         # First register the self.interrupted in the pubsub call
@@ -852,7 +838,7 @@ class Cluster(object):
 
 
     def launch_collector_thread(self):
-        self.collector_thread = threader.create_and_launch(self.do_collector_thread, name='collector-thread')
+        self.collector_thread = threader.create_and_launch(collectormgr.do_collector_thread, name='collector-thread')
 
         
     def launch_generator_thread(self):
@@ -1958,36 +1944,6 @@ class Cluster(object):
              del cur_launchs[cid]
 
           time.sleep(1)
-
-
-    # Main thread for launching collectors
-    def do_collector_thread(self):
-       logger.log('COLLECTOR thread launched', part='check')
-       cur_launchs = {}
-       while not self.interrupted:
-           #logger.debug('... collectors...')
-           now = int(time.time())
-           for (cls, e) in self.collectors.iteritems():
-               colname = e['name']
-               inst = e['inst']
-               # maybe a collection is already running
-               if colname in cur_launchs:
-                   continue
-               if now >= e['next_check']:
-                   logger.debug('COLLECTOR: launching collector %s' % colname, part='check')
-                   t = threader.create_and_launch(inst.main, name='collector-%s' % colname)#, args=(,))
-                   cur_launchs[colname] = t
-                   e['next_check'] += 10
-
-           to_del = []
-           for (colname, t) in cur_launchs.iteritems():
-               if not t.is_alive():
-                   t.join()
-                   to_del.append(colname)
-           for colname in to_del:
-               del cur_launchs[colname]
-
-           time.sleep(1)
 
 
     # Main thread for launching generators

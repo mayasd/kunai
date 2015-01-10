@@ -8,7 +8,8 @@ import urllib2
 import traceback
 import time
 from StringIO import StringIO
-from multiprocessing import subprocess
+import subprocess
+
 
 from kunai.log import logger
 from kunai.collector import Collector
