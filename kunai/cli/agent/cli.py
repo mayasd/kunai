@@ -377,7 +377,7 @@ def do_stop():
     except request_errors, exp:
         logger.error(exp)
         return
-    cprint(r.text, color='green')
+    cprint(r, color='green')
     
     
     
@@ -471,7 +471,7 @@ exports = {
         },
 
     do_start : {
-        'keywords': ['start'],
+        'keywords': ['agent', 'start'],
         'args': [
             {'name' : '--daemon', 'type':'bool', 'default':False, 'description':'Start kunai into the background'},
         ],
@@ -479,7 +479,7 @@ exports = {
         },
 
     do_stop : {
-        'keywords': ['stop'],
+        'keywords': ['agent', 'stop'],
         'args': [],
         'description': 'Stop the kunai daemon'
         },
@@ -539,7 +539,7 @@ exports = {
         },
 
     do_docker_stats : {
-        'keywords': ['docker_stats'],
+        'keywords': ['docker', 'stats'],
         'args': [],
         'description': 'Show stats from docker containers and images'
         },

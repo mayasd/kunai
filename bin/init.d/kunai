@@ -150,7 +150,7 @@ do_status() {
 #
 do_start() {
     [ "$DEBUG" = 1 ] && DEBUGCMD="--debug "$(getdebugfile "$mod")
-    output=$(kunai start --daemon $DEBUGCMD 2>&1)
+    output=$(kunai agent start --daemon $DEBUGCMD 2>&1)
     rc=$?
     
     if [ $rc != 0 ]; then
@@ -172,7 +172,7 @@ do_stop() {
         echo "$statusoutput"
         return 0
     }
-    stopoutput=$(kunai stop)
+    stopoutput=$(kunai agent stop)
     echo "OK"
     return 0
 }
