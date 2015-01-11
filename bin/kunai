@@ -47,12 +47,14 @@ else:
     DEFAULT_CFG = 'c:\\kunai\\etc\\local.json'
 
 
+
+
 # Commander is the main class for managing the CLI session and behavior
 class CLICommander(object):
     def __init__(self, config, opts):
         self.keywords = {}
+        
         self.config = config
-        self.init_done = False
 
         name = config.get('name', '%s' % socket.gethostname())
         log_dir = config.get('log', '/var/lib/kunai')
@@ -67,16 +69,14 @@ class CLICommander(object):
     
     def load_cli_mods(self, opts):
         # Main list of keywords for the first parameter
-        self.keywords = {}
-
+        self.keywords.clear()
+        
         # CLI are located in the kunai lib
         cli_mods_dir = os.path.dirname(os.path.abspath(cli_mod.__file__))
         
-        self.init_done = True
-
         logger.debug("Loading the cli directory %s" % cli_mods_dir)
         cli_mods_dirs = [os.path.join(cli_mods_dir, d) for d in os.listdir(cli_mods_dir) if os.path.isdir(os.path.join(cli_mods_dir, d))]
-
+        
         for d in cli_mods_dirs:
             f = os.path.join(d, 'cli.py')
             if os.path.exists(f):
@@ -90,26 +90,42 @@ class CLICommander(object):
                 exports = getattr(m, 'exports', {})
                 for (f, v) in exports.iteritems():
                     m_keywords = v.get('keywords', [])
-                    for k in m_keywords:
-                        e = {'f': f,
-                             'args': v.get('args', []),
-                             'description': v.get('description', ''),
-                             'came_from': dname}
-                        # Finally save it
-                        self.keywords[k] = e
+                    sub_cmd = 'global'
+                    k = m_keywords[0]
+                    if len(m_keywords) >= 2:
+                        k = m_keywords[1]
+                        sub_cmd = m_keywords[0]
+                    e = {'f': f,
+                         'args': v.get('args', []),
+                         'description': v.get('description', ''),
+                         'came_from': sub_cmd}
+                    if not sub_cmd in self.keywords:
+                        self.keywords[sub_cmd] = {}
+                    # Finally save it
+                    self.keywords[sub_cmd][k] = e
 
         logger.debug('We load the keywords %s' % self.keywords)
     
         
     # Execute a function based on the command line
     def one_loop(self, command_args):
-        if not self.init_done:
-            logger.error('CLI loading not done: missing configuration data. Please run --init')
-            return
-
         logger.debug("ARGS: %s" % command_args)
-        keyword = command_args.pop(0)
-        mod = self.keywords.get(keyword, None)
+        sub_cmd = 'global'
+        keyword = ''
+        
+        # cannot be void because if so won't be in this loop
+        if len(command_args) == 1:
+            keyword = command_args.pop(0)
+        else:
+            sub_cmd = command_args.pop(0)
+            keyword = command_args.pop(0)
+            
+        d = self.keywords.get(sub_cmd, None)
+        if d is None:
+            logger.error('Unknown sub command %s' % sub_cmd)
+            return
+            
+        mod = d.get(keyword, None)
         if mod is None:
             logger.error("UNKNOWN command %s" % keyword)
             return
@@ -153,23 +169,28 @@ class CLICommander(object):
 
     
     def print_list(self):
-        if not self.init_done:
-            return
         print "Available commands:"
         all_from = {}
-        for (k, m) in self.keywords.iteritems():
-            came_from = m['came_from']
-            if came_from not in all_from:
-                all_from[came_from] = {k:m}
-            else:
-                all_from[came_from][k] = m
-        for (mod_name, d) in all_from.iteritems():
-            print '%s:' % mod_name
+        sub_cmds = self.keywords.keys()
+        sub_cmds.remove('global')
+        sub_cmds.sort()
+        sub_cmds.insert(0, 'global')
+        
+        for cmd in sub_cmds:
+            prefix = cmd
+            if cmd == 'global':
+                prefix = ''
+            d = self.keywords[cmd]
+            cprint('%s:' % cmd, color='blue')
             cmds = d.keys()
             cmds.sort()
             for k in cmds:
                 m = d[k]
-                cprint('\t%s ' % k.ljust(10), 'green', end='')
+                s = k.ljust(15)
+                if prefix:
+                    s = '%s %s' % (prefix, k)
+                    s = s.ljust(15)
+                cprint('\t%s ' % s, 'green', end='')
                 cprint(': %s' % m['description'])
         return
 
@@ -237,9 +258,15 @@ if __name__ == '__main__':
     def hack_sys_argv():
         command_values = []
         internal_values = []
-        #print "RARGS", parser.rargs
+        
         founded = False
+        globals_keys = CLI.keywords['global'].keys()
         for arg in sys.argv:
+            
+            # Maybe it's a global one
+            if not founded and arg in globals_keys:
+                founded = True
+                command_values.insert(0, 'global')
             if arg in CLI.keywords:
                 founded = True
             # Did we found it?
@@ -248,6 +275,8 @@ if __name__ == '__main__':
             else:  # ok still not, it's for the shinekn command so
                 internal_values.append(arg)
 
+        logger.debug('Internal args %s' % internal_values)
+        logger.debug('Command values %s' % command_values)
         sys.argv = internal_values
         return command_values
 
@@ -257,17 +286,20 @@ if __name__ == '__main__':
 
     # Global command parsing, with the error enabled this time
     opts, args = parser.parse_args()
+    
+    logger.debug('CLI ARGS: %s' % args)
 
     if opts.do_help:
         if len(command_args) == 0:
             logger.error("Cannot find any help for you")
             sys.exit(1)
+        sub_cmd = command_args.pop(0)
         a = command_args.pop(0)
-        if a not in CLI.keywords:
+        if a not in CLI.keywords[sub_cmd]:
             logger.error("Cannot find any help for %s" % a)
             sys.exit(1)
         cprint('%s' % a, 'green')
-        for arg in CLI.keywords[a]['args']:
+        for arg in CLI.keywords[sub_cmd][a]['args']:
             n = arg.get('name', '')
             desc = arg.get('description', '')
             cprint('\t%s' % n.ljust(10), 'green', end='')
@@ -279,9 +311,10 @@ if __name__ == '__main__':
     if opts.do_list:
         CLI.print_list()
         sys.exit(0)
-    
+
     # if just call kunai, we must show the available commands
     if len(command_args) == 0:
+        parser.print_help()
         CLI.print_list()
         sys.exit(0)
 
