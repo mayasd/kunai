@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# -*- coding: utf-8 -*-
+
 # Copyright (C) 2014:
 #    Gabes Jean, naparuba@gmail.com
 
@@ -20,6 +22,16 @@ try:
     import requests as rq
 except ImportError:
     rq = None
+
+# try pygments for pretty printing if available
+from pprint import pprint
+try:
+    import pygments
+    import pygments.lexers
+    import pygments.formatters
+except ImportError:
+    pygments = None
+
 
 from kunai.cluster import Cluster
 from kunai.log import cprint, logger
@@ -181,7 +193,7 @@ def print_info_title(title):
     #s = '=================== %s ' % t
     #s += '='*(50 - len(s))
     #cprint(s)
-    print '========== [%s]:' % title
+    cprint('========== [%s]:' % title)
 
 
 def print_2tab(e, capitalize=True, col_size=20):
@@ -191,7 +203,7 @@ def print_2tab(e, capitalize=True, col_size=20):
             label = label.capitalize()
         s = '%s: ' % label
         s = s.ljust(col_size)
-        cprint(s, end='')
+        cprint(s, end='', color='blue')
         # If it's a dict, we got additiionnal data like color or type
         if isinstance(v, dict):
             color = v.get('color', 'green')
@@ -356,9 +368,27 @@ def do_docker_stats():
         print_2tab(e, capitalize=False, col_size=30)
 
 
+
+
+def do_collectors_show():
+    collectors = get_json('/collectors')
     
+    for (cname, d) in collectors.iteritems():
+        print_info_title('Collector %s' % cname)
+        # for pretty print in color, need to have both pygments and don't
+        # be in a | or a file dump >, so we need to have a tty ^^
+        if pygments and sys.stdout.isatty():
+            lexer = pygments.lexers.get_lexer_by_name("json", stripall=False)
+            formatter = pygments.formatters.TerminalFormatter()
+            code = json.dumps(d, indent=4)
+            result = pygments.highlight(code, lexer, formatter)
+            print result
+        else:
+            pprint(d)
+
+
     
-    
+
     
 # Main daemon function. Currently in blocking mode only
 def do_start(daemon):
@@ -542,6 +572,12 @@ exports = {
         'keywords': ['docker', 'stats'],
         'args': [],
         'description': 'Show stats from docker containers and images'
+        },
+
+    do_collectors_show : {
+        'keywords': ['collectors', 'show'],
+        'args': [],
+        'description': 'Show collectors informations'
         },
 
     
