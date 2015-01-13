@@ -284,6 +284,7 @@ for m in mod_need:
     try:
         __import__(m)
     except ImportError:
-        print('\033[33mWarning: cannot import module %s. You must install if before launch the kunai deamon \033[0m' % m)
+        print('\033[93mWarning: cannot import module %s. You must install if before launch the kunai deamon \033[0m' % m)
 
-print "\033[32mKunai install: OK\033[0m"
+print "\033[92mKunai install: OK\033[0m"
+
