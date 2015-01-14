@@ -18,6 +18,14 @@ from kunai.websocketmanager import websocketmgr
 from kunai.broadcast import broadcaster
 
 
+def protected():
+    def decorator(f):
+        logger.debug('Protecting a function %s' % f)
+        f.protected = True
+        return f
+    return decorator
+
+
 # We want the http daemon to be accessible from everywhere without issue
 class EnableCors(object):
     name = 'enable_cors'
@@ -38,6 +46,31 @@ class EnableCors(object):
 
     
 
+# Some calls should be directly available directly in
+# the internal webserver (unix one)
+class ExternalHttpProtectionLookup(object):
+    name = 'externalhttp_protection'
+    api = 2
+    
+    def apply(self, fn, context):
+        def _externalhttp_protection(*args, **kwargs):
+            # if it's a protected function, look if it's
+            # an internal call (ok) or not :)
+            if getattr(fn, 'protected', False):
+                # SERVER PORT will be something like 6768 in external port
+                # and '' in the internal one. Cannot be spooffed ^^
+                SERVER_PORT = bottle.request.environ['SERVER_PORT']
+                internal_server = (SERVER_PORT == '')
+                if not internal_server:
+                    return bottle.abort(401)
+            
+            # actual request; reply with the actual response
+            return fn(*args, **kwargs)
+
+        return _externalhttp_protection
+
+    
+
 
 # This class is the http daemon main interface
 # in a singleton mode so you can easily register new uri from other
@@ -51,19 +84,29 @@ class HttpDaemon(object):
         # First enable cors on all our calls
         bapp = bottle.app()
         bapp.install(EnableCors())
-
+        
+        # Socket access got a root access, a direct one :)
+        # but in the external should be an autorization
+        bapp.install(ExternalHttpProtectionLookup())
+        
         if socket_path:
             # Will lock for in this
             # warning: without the str() cherrypy is not happy with the value, do not emove it
-            run(server='cherrypy', bind_addr=str(socket_path), numthreads=8) # not need for a lot of threads here
+            bapp.run(server='cherrypy', bind_addr=str(socket_path), numthreads=8) # not need for a lot of threads here
         else:
             # And this too but in another thread
-            run(host=addr, port=port, server='cherrypy', numthreads=64)# 256?
+            bapp.run(host=addr, port=port, server='cherrypy', numthreads=64)# 256?
 
             
     # Some default URI    
     @error(404)
     def err404(error):
+        return ''
+
+
+    # Some default URI    
+    @error(401)
+    def err401(error):
         return ''
 
     
