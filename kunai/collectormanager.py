@@ -16,7 +16,7 @@ from kunai.log import logger
 from kunai.threadmgr import threader
 from kunai.now import NOW
 from kunai.stop import stopper
-from kunai.httpdaemon import route, response
+from kunai.httpdaemon import route, response, protected
 from kunai.collector import Collector
 
 def get_collectors(self):
@@ -149,6 +149,7 @@ class CollectorManager:
 
         @route('/collectors/')
         @route('/collectors')
+#        @protected()
         def get_collectors():
             response.content_type = 'application/json'
             res = {}
