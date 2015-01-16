@@ -559,7 +559,7 @@ exports = {
 
     do_leave : {
         'keywords': ['leave'],
-        'description': 'Join another node cluster',
+        'description': 'Put in leave a cluster node',
         'args': [
             {'name' : 'name', 'default':'', 'description':'Name of the node to force leave. If void, leave our local node'},
             ],
