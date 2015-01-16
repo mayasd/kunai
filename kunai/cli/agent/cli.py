@@ -370,10 +370,13 @@ def do_docker_stats():
 
 
 
-def do_collectors_show():
+def do_collectors_show(all):
     collectors = get_json('/collectors')
-    
+    disabled = []
     for (cname, d) in collectors.iteritems():
+        if not d['active'] and not all:
+            disabled.append(d)
+            continue
         print_info_title('Collector %s' % cname)
         # for pretty print in color, need to have both pygments and don't
         # be in a | or a file dump >, so we need to have a tty ^^
@@ -385,7 +388,10 @@ def do_collectors_show():
             print result
         else:
             pprint(d)
-
+    if len(disabled) > 0:
+        print_info_title('Disabled collectors')
+        cprint(','.join([ d['name'] for d in disabled]), color='grey')
+    
 
     
 
@@ -576,7 +582,9 @@ exports = {
 
     do_collectors_show : {
         'keywords': ['collectors', 'show'],
-        'args': [],
+        'args': [
+            {'name' : '--all', 'default':False, 'description':'Show all collectors, even diabled one', 'type':'bool'},            
+            ],
         'description': 'Show collectors informations'
         },
 

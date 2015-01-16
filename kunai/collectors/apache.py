@@ -13,7 +13,7 @@ from kunai.log import logger
 from kunai.collector import Collector
 
 
-class ApacheStatus(Collector):
+class Apache(Collector):
     def launch(self):
         logger.debug('getApacheStatus: start')
 
