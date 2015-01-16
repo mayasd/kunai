@@ -14,36 +14,56 @@ You will need:
   * python >= 2.6 (but not 3)
   * python-leveldb
   * python-requests
+  * python-jinja2 
+  * python-cherrypy3
 
 
-Quik and dirty 
+On linux:
+
+  * sysstat
+
+To monitor mongodb server:
+
+  * python-pymongo
+
+To monitor docker:
+ 
+  * pip install docker
+
+
+Installation
 ==============
 
-You need to create the directories:
-
-   /var/lib/kunai/data
-   /var/lib/kunai/libexec/
-
-and copy the cli directory into the /var/lib/kunai/
+You need to launch:
+   
+   python setup.py install
 
 
-First launch
-============
+Launch the daemon
+=================
 
-You can quick launch manually your daemon with:
+You can start kunai as a daemon with:
+ 
+   /etc/init.d/kunai start
 
-   python tanuki.py
+You can also launch it in foreground:
 
-(a real launcher will be available soon)
-
-
-And check that the 6768 port is open (http)
+   kunai agent start
 
 
-Is there an UI?
-===============
+How to get agent informations (pid, port, state, etc)
+=====================================================
 
-Yes. There is a (simple) UI available in the ui/ directory. It's just flat file and so you can just export the directory with apache/nginx and play with it.
+
+Just launch:
+
+   kunai info
+
+
+Is there an UI avialable?
+=========================
+
+Yes. There is a UI available in the /var/lib/kuani/ui/ directory. It's just flat files and so you can just export the directory with apache/nginx and play with it.
 
 
 How to add new nodes in the node cluster?
@@ -53,11 +73,45 @@ First you need to install and launch the node in another server.
 
 Then in this other server you can launch:
   
-   bin/kunai join  OTHER-IP:6768
+   kunai join  OTHER-IP
+
+
+How can I just kunai cluster members?
+=====================================
 
 You can list the cluster members on all nodes with :
 
-  bin/kunai  members
+  kunai  members
 
-And you will see the new node on the UI.
+And you will see the new node on the UI if you enable it
+
+
+
+How to see collected data? (metrology)
+======================================
+
+The kunai agent is by default getting lot of metrology data from your OS and applications. It's done by "collctors" objets. You can easily list them and look at the colelcted data by launching:
+
+  kunai collectors show
+
+
+How to see docker performance informations?
+===========================================
+
+If docker is launched on your server, Kunai will get data from it, like colelctors, images and performances.
+
+To list all of this just launch:
+
+
+  kunai docker stats
+
+
+How to stop a kunai daemon?
+===========================
+
+Just launch:
+  
+  kunai agent stop
+
+
 
