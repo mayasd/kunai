@@ -1,6 +1,6 @@
 {
 
-    "tags"           : ["haproxy", "linux"],
+    "tags"           : ["linux"],
     "datacenters"    : ["dc1"],
     "bootstrap"      : false,
     "seeds"          : [],
