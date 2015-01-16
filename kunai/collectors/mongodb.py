@@ -54,7 +54,11 @@ class Mongodb(Collector):
             logger.debug('-- mongoURI: %s', mongoURI)
             conn = Connection(mongoURI, slave_okay=True)
             logger.debug('Connected to MongoDB')
-        except Exception, ex:
+        except pymongo.errors.ConnectionFailure, exp:
+            logger.info('Unable to connect to MongoDB server %s - Exception = %s' % (mongoURI, exp))
+            return False
+        except Exception, exp:
+            print type(exp)
             logger.error('Unable to connect to MongoDB server %s - Exception = %s', mongoURI, traceback.format_exc())
             return False
 
