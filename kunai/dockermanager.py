@@ -2,11 +2,6 @@
 import json
 import time
 import sys
-from pprint import pprint
-try:
-    from docker import Client
-except ImportError:
-    Client = None
 
 from kunai.stats import STATS
 from kunai.log import logger
@@ -14,6 +9,8 @@ from kunai.threadmgr import threader
 from kunai.now import NOW
 from kunai.httpdaemon import route, response
 from kunai.cgroups import cgroupmgr
+from kunai.unixclient import get_json, request_errors
+
 
 def lower_dict(d):    
     nd = {}
@@ -31,6 +28,7 @@ class DockerManager(object):
     def __init__(self):
         self.con = None
         self.containers = {}
+        self.images = {}
         # We got an object, we can fill the http daemon part
         self.export_http()
         # last stats computation for containers, some are rate
@@ -42,10 +40,17 @@ class DockerManager(object):
 
         
     def get_info(self):
-        r = {'enabled':     Client is not None,
+        r = {'enabled':     True, #TODO: manage in the configuration in a global way
              'connected' :  self.con is not None,
              'containers':  self.containers,
+             'version'   : '',
+             'api'       : '',
+             'images'    : self.images,
         }
+        if self.con:
+            r['version'] = self.con['Version']
+            r['api'] = self.con['ApiVersion']
+            
         return r
 
 
@@ -57,25 +62,36 @@ class DockerManager(object):
     
         
     def launch(self):
-        if not Client:
-            logger.warning('Missing docker lib')
-            return
         t = threader.create_and_launch(self.do_loop, name='docker-loop')
         t = threader.create_and_launch(self.do_stats_loop, name='docker-stats-loop')        
         
 
-
     def connect(self):
         if not self.con:
             try:
-                self.con = Client(base_url='unix://var/run/docker.sock')
-            except Exception, exp:
-                logger.debug('Cannot connect to docker %s' % exp)
+                self.con = get_json('/version', local_socket='/var/run/docker.sock')
+            except request_errors, exp: # cannot connect
                 self.con = None
+                logger.debug('Cannot connect to docker')
+                return
+            # Version return something like this:
+            #{
+            #    "ApiVersion":"1.12",
+            #    "Version":"0.2.2",
+            #    "GitCommit":"5a2a5cc+CHANGES",
+            #    "GoVersion":"go1.0.3"
+            #        }
+            if self.con == '':
+                self.con = None
+                logger.debug('Cannot connect to docker')
 
 
     def load_container(self, _id):
-        inspect = self.con.inspect_container(_id)
+        try:
+            inspect = get_json('/containers/%s/json' % _id, local_socket='/var/run/docker.sock')
+        except request_errors, exp:
+            self.connect()
+            return
         c = lower_dict(inspect)
         logger.debug('LOADED NEW CONTAINER %s' % c)
         self.containers[_id] = c
@@ -84,17 +100,34 @@ class DockerManager(object):
     def load_containers(self):
         if not self.con:
             return
-        conts = self.con.containers()
+        try:
+            conts = get_json('/containers/json', local_socket='/var/run/docker.sock')
+        except request_errors, exp:
+            self.connect()
+            return
+            
         for c in conts:
             _id = c.get('Id')
             self.load_container(_id)
-            print "Container", self.containers[_id]
+            logger.info("Loading docker container %s" % _id)
+            logger.debug("Container data", self.containers[_id])
 
+            
+    def load_images(self):
+        if not self.con:
+            return
+        try:
+            self.images = get_json('/images/json', local_socket='/var/run/docker.sock')
+        except request_errors, exp:
+            self.connect()
+            return
+            
 
+        
     def compute_stats(self):
         cids = self.containers.keys()
         stats = cgroupmgr.get_containers_metrics(cids)
-        print 'RAW STATS', stats
+
         now = time.time()
         for (cid, nst) in stats.iteritems():
             c_stats = self.stats.get(cid, {})
@@ -110,7 +143,6 @@ class DockerManager(object):
                 if _type == 'gauge':
                     c_stats[k] = {'type':_type, 'key':k, 'value':d['value'], 'scope':scope}
                 elif _type == 'rate':
-                    print "HEEH", c_stats.get(k, {})
                     o = c_stats.get(k, {})
                     rate_f = d['rate_f']
                     if o == {}:
@@ -118,18 +150,14 @@ class DockerManager(object):
                         # there is no older value
                         c_stats[k] = {'type':_type, 'key':k, 'value':None, 'raw_value':d['value'], 'scope':scope}
                         continue
-                    print "COMPARING", o['raw_value'], d['value']
+                    
                     if rate_f is None:
                         rate_v = (d['value'] - o['raw_value']) / diff
                     else:
-                        print 'RATE V', o['raw_value'], d['value'], diff
                         rate_v = rate_f(o['raw_value'], d['value'], diff)
-                        print rate_v
                     c_stats[k] = {'type':_type, 'key':k, 'value':rate_v, 'raw_value':d['value'], 'scope':scope}
                     
             self.stats[cid] = c_stats
-            print 'COMPUTE', self.stats
-
 
         # Keep stats only for the known containers
         to_del = []
@@ -137,7 +165,8 @@ class DockerManager(object):
             if cid not in self.containers:
                 to_del.append(cid)
         for cid in to_del:
-            del self.containers[cid]
+            if cid in self.containers:
+                del self.containers[cid]
             
         # tag the current time so we can diff rate in the future
         self.last_stats = now
@@ -156,18 +185,16 @@ class DockerManager(object):
             # avoid containers with no stats, it's not a good thing here :)
             if cid not in self.stats:
                 continue
-            print 'CONT'
-            pprint(cont)
             img = cont.get('image')
             if not img in images:
                 images[img] = []
             images[img].append(cid)
 
         img_stats = {}
-        print "IMAGES", images
+        #print "IMAGES", images
         for (img, cids) in images.iteritems():
-            print 'IMAGE', img
-            print cids
+            #print 'IMAGE', img
+            #print cids
             s = {}
             img_stats[img] = s
             for cid in cids:
@@ -176,8 +203,6 @@ class DockerManager(object):
                     if s.get(k, None) is None:
                         s[k] = d
                         continue
-                    print k, d
-                    print s[k]
                     c = s[k]
                     
                     if d['value'] is not None:
@@ -185,26 +210,24 @@ class DockerManager(object):
                             c['value'] = d['value']
                         else:
                             c['value'] += d['value']
-            print 'S'
-            print img, s
-
+        
         images_stats = {}
-        # Now get images
-        docker_images = self.con.images()
+        # Now be sure to have updated images
+        self.load_images()
+        
         for (img_id, s) in img_stats.iteritems():
             img = None
-            for d in docker_images:
+            for d in self.images:
                 if d['Id'] == img_id:
                     img = d
                     break
             # No more image?
             if img is None:
                 continue
-            print "MATCH", img, s
             imgname = img['RepoTags'][0]
             images_stats[imgname] = s
         self.images_stats = images_stats
-        print 'Finally compute', self.images_stats
+        #print 'Finally compute', self.images_stats
 
 
     def do_stats_loop(self):
@@ -222,16 +245,27 @@ class DockerManager(object):
     def do_loop(self):
         self.connect()
         self.load_containers()
+        self.load_images()        
         while True:
-            print "LOOP ON THE DOCKER"
             self.connect()
             if not self.con:
                 time.sleep(1) # do not hammer the connexion
                 continue
+            now = int(time.time())
+            try:
+                evts = get_json("/events", local_socket='/var/run/docker.sock', params={'until':now, 'since':now - 1}, multi=True)
+            except Exception, exp:
+                logger.debug('cannot get docker events: %s' % exp)
+                time.sleep(1)
+                continue
+            logger.debug("GET docker events %s" % evts)
+            # docker an return one or more dict
+            if isinstance(evts, dict):
+                evts = [evts]
             # now manage events and lock on it
-            evts = self.con.events() # can lock here
+            #evts = self.con.events() # can lock here
             for ev in evts:
-                evdata = json.loads(ev)
+                evdata = ev
                 _id = evdata["id"]
                 status = evdata["status"]
                 if status in ("die", "stop"):
@@ -240,12 +274,12 @@ class DockerManager(object):
                         del self.containers[_id]
                         # stats will be cleaned on the next computation
                     else:
-                        logger.error('Asking to remove an unknow container? %s' % _id)
+                        logger.debug('Asking to remove an unknow container? %s' % _id)
                 elif status == 'start':
                     self.load_container(_id)
                 else:
                     logger.debug('UNKNOWN EVENT IN DOCKER %s' % status)
-
+            time.sleep(1)
                     
     # main method to export http interface. Must be in a method that got
     # a self entry
@@ -278,7 +312,7 @@ class DockerManager(object):
             response.content_type = 'application/json'
             if self.con is None:
                 return json.dumps(None)
-            imgs = self.con.images()
+            imgs = get_json('/images/json', local_socket='/var/run/docker.sock')
             r = [lower_dict(d) for d in imgs]
             return json.dumps(r)
 
@@ -288,7 +322,7 @@ class DockerManager(object):
             response.content_type = 'application/json'
             if self.con is None:
                 return json.dumps(None)
-            imgs = self.con.images()
+            imgs = get_json('/images/json', local_socket='/var/run/docker.sock')            
             for d in imgs:
                 if d['Id'] == _id:
                     return json.dumps(lower_dict(d))
