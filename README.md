@@ -26,9 +26,6 @@ To monitor mongodb server:
 
   * python-pymongo
 
-To monitor docker:
- 
-  * pip install docker
 
 
 Installation
@@ -101,7 +98,6 @@ How to see docker performance informations?
 If docker is launched on your server, Kunai will get data from it, like colelctors, images and performances.
 
 To list all of this just launch:
-
 
   kunai docker stats
 

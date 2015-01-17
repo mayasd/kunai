@@ -125,7 +125,7 @@ class CgroupMgr(object):
                 return dict(map(lambda x: x.split(), fp.read().splitlines()))
         except IOError:
             # It is possible that the container got stopped between the API call and now
-            logger.info("Can't open %s. Metrics for this container are skipped." % stat_file)
+            logger.info("Can't open %s. Theses metrics for this container are skipped." % stat_file)
             return None
         
     

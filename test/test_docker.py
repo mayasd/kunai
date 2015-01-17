@@ -21,9 +21,6 @@ class TestDocker(KunaiTest):
         if dockermgr.con is None:
             return
 
-        print "Containers"
-        pprint(dockermgr.containers)
-
         dockermgr.compute_stats()
         time.sleep(1)
         dockermgr.compute_stats()        
