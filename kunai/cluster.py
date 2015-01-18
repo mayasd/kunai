@@ -250,6 +250,7 @@ class Cluster(object):
         self.nodes_file = os.path.join(self.data_dir, 'nodes.json')
         self.check_retention = os.path.join(self.data_dir, 'checks.dat')
         self.service_retention = os.path.join(self.data_dir, 'services.dat')
+        self.collector_retention = os.path.join(self.data_dir, 'collectors.dat')
         self.last_alive_file = os.path.join(self.data_dir, 'last_alive')
         
         # Our cluster need a uniq uuid
@@ -282,6 +283,8 @@ class Cluster(object):
         else:
             self.incarnation = 0
 
+        # Load check and service retention as they are filled
+        # collectors will wait a bit
         self.load_check_retention()
         self.load_service_retention()
 
@@ -341,13 +344,15 @@ class Cluster(object):
         
         # Load all collectors globaly
         collectormgr.load_collectors(self.cfg_data)
+        # and their last data
+        self.load_collector_retention()
         
         # Load docker thing if possible
         dockermgr.launch()
         
         # Our main object for gossip managment
         self.gossip = Gossip(self.nodes, self.nodes_lock, self.addr, self.port, self.name, self.incarnation, self.uuid, self.tags, self.seeds, self.bootstrap)
-
+        
         # get the message in a pub-sub way
         pubsub.sub('manage-message', self.manage_message_pub)
 
@@ -792,6 +797,18 @@ class Cluster(object):
        self.update_checks_kv()
 
 
+    # Load raw results of collectors, and give them to the
+    # collectormgr that will know how to load them :)
+    def load_collector_retention(self):
+       if not os.path.exists(self.collector_retention):
+          return
+       
+       logger.log('Collectors loading collector retention file %s' % self.collector_retention)
+       with open(self.collector_retention, 'r') as f:
+          loaded = json.loads(f.read())
+          collectormgr.load_retention(loaded)
+       logger.log('Collectors loaded retention file %s' % self.collector_retention)
+       
 
 
     # What to do when we receive a signal from the system
@@ -2504,6 +2521,12 @@ Subject: %s
                f.write(json.dumps(int(time.time())))
             # now move the tmp into the real one
             shutil.move(self.last_alive_file+'.tmp', self.last_alive_file)
+
+            with open(self.collector_retention+'.tmp', 'w') as f:
+                data = collectormgr.get_retention()
+                f.write(json.dumps(data))
+            # now move the tmp into the real one
+            shutil.move(self.collector_retention+'.tmp', self.collector_retention)
             
             self.last_retention_write = now
 

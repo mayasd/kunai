@@ -92,6 +92,33 @@ class CollectorManager:
         return res
 
 
+    def get_retention(self):
+        res = {}
+        with self.results_lock:
+            for (cname, e) in self.collectors.iteritems():
+                res[cname] = {}
+                res[cname]['results'] = e['results']
+                res[cname]['metrics'] = e['metrics']
+        return res
+    
+
+    def get_retention(self):
+        res = {}
+        with self.results_lock:
+            for (cname, e) in self.collectors.iteritems():
+                res[cname] = {}
+                res[cname]['results'] = e['results']
+                res[cname]['metrics'] = e['metrics']
+        return res
+    
+
+    def load_retention(self, data):
+        with self.results_lock:
+            for (cname, e) in data.iteritems():
+                self.collectors[cname]['results'] = e['results']
+                self.collectors[cname]['metrics'] = e['metrics']
+    
+    
     def get_data(self, s):
         print 'GET DATA OF', s
         elts = s.split('.')
