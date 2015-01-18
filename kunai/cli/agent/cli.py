@@ -49,62 +49,31 @@ if rq is None:
 # Will be populated by the shinken CLI command
 CONFIG = None
 
-
-
-
-
-from kunai.cli.unixhttp import urllib2, UnixHTTPConnection, UnixSocketHandler
-
-
-
-request_errors = (urllib2.URLError, rq.exceptions.ConnectionError)
-
 def get_local_socket():
     return CONFIG.get('socket', '/var/lib/kunai/kunai.sock')
 
-# Get on the local socket. Beware to monkeypatch the get
-def get_local(u):
-    UnixHTTPConnection.socket_timeout = 5
-    url_opener = urllib2.build_opener(UnixSocketHandler())
-    p = get_local_socket()
-    uri = 'unix:/%s%s' % (p, u)
-    logger.debug("Connecting to local http unix socket at: %s" % uri)
-    req = urllib2.Request(uri, None)
 
-    request = url_opener.open(req)
-    response = request.read()
-    return response
+from kunai.unixclient import get_json, get_local, request_errors
 
 
-# get a json on the local server, and parse the result    
-def get_json(uri):
-    try:
-        r = get_local(uri)
-    except request_errors, exp:
-        logger.error('Cannot connect to local kunai daemon: %s' % exp)
-        sys.exit(1)
-    try:
-        d = json.loads(r) # was r.text from requests
-    except ValueError, exp:# bad json
-        logger.error('Bad return from the server %s' % exp)
-        sys.exit(1)        
-    return d
-    
+def get_kunai_json(uri):
+    local_socket = get_local_socket()
+    return get_json(uri, local_socket)
+
+
+def get_kunai_local(uri):
+    local_socket = get_local_socket()
+    return get_local(uri, local_socket)
     
 
 ############# ********************        MEMBERS management          ****************###########    
 
 def do_members():
     try:
-        r = get_local('/agent/members')
+        members = get_kunai_json('/agent/members').values()
     except request_errors, exp:
-        logger.error(exp)
-        return
-    try:
-        members = json.loads(r.text).values()
-    except ValueError, exp:# bad json
-        logger.error('Bad return from the server %s' % exp)
-        return
+        logger.error('Cannot join kunai agent: %s' % exp)
+        sys.exit(1)
     members = sorted(members, key=lambda e:e['name'])
     max_name_size = max([ len(m['name']) for m in members ])
     max_addr_size = max([ len(m['addr']) + len(str(m['port'])) + 1 for m in members ])    
@@ -128,20 +97,20 @@ def do_leave(name=''):
     # Lookup at the localhost name first
     if not name:
         try:
-            r = get_local('/agent/name')
+            (code, r) = get_kunai_local('/agent/name')
         except request_errors, exp:
             logger.error(exp)
             return
-        name = r.text
+        name = r
     try:
-        r = get_local('/agent/leave/%s' % name)        
+        (code, r) = get_kunai_local('/agent/leave/%s' % name)        
     except request_errors, exp:
         logger.error(exp)
         return
     
-    if r.status_code != 200:
+    if code != 200:
         logger.error('Node %s is missing' % name)
-        print r.text
+        print r
         return
     cprint('Node %s is set to leave state' % name,end='')
     cprint(': OK', color='green')
@@ -152,13 +121,13 @@ def do_state(name=''):
     if not name:
         uri = '/agent/state'
     try:
-        r = get_local(uri)
+        (code, r) = get_kunai_local(uri)
     except request_errors, exp:
         logger.error(exp)
         return
 
     try:
-        d = json.loads(r.text)
+        d = json.loads(r)
     except ValueError, exp:# bad json
         logger.error('Bad return from the server %s' % exp)
         return
@@ -171,7 +140,7 @@ def do_state(name=''):
         state = {0:'OK', 2:'CRITICAL', 1:'WARNING', 3:'UNKNOWN'}.get(state, 'UNKNOWN')
         cprint('%s - ' % state.ljust(8), color=c, end='')
         output = service['check']['output']
-        cprint(output.strip())
+        cprint(output.strip(), color='grey')
 
     print "Checks:"
     for (cname, check) in d['checks'].iteritems():
@@ -181,13 +150,14 @@ def do_state(name=''):
         state = {0:'OK', 2:'CRITICAL', 1:'WARNING', 3:'UNKNOWN'}.get(state, 'UNKNOWN')
         cprint('%s - ' % state.ljust(8), color=c, end='')
         output = check['output']
-        cprint(output.strip())
+        cprint(output.strip(), color='grey')
         
 
 
 def do_version():
     cprint(VERSION)
-
+    
+    
 def print_info_title(title):
     #t = title.ljust(15)
     #s = '=================== %s ' % t
@@ -215,7 +185,7 @@ def print_2tab(e, capitalize=True, col_size=20):
     
     
 def do_info(show_logs):
-    d = get_json('/agent/info')
+    d = get_kunai_json('/agent/info')
     
     logs = d.get('logs')
     version = d.get('version')
@@ -294,14 +264,33 @@ def do_info(show_logs):
 
     # Now collectors part
     print_info_title('Collectors')
-    e = [(k, v['active']) for (k,v) in collectors.iteritems()]
+    cnames = collectors.keys()
+    cnames.sort()
+    e = []
+    for cname in cnames:
+        v = collectors[cname]
+        color = 'green'
+        if not v['active']:
+            color = 'grey'
+        e.append( (cname, {'value':v['active'], 'color':color}) )
     print_2tab(e)
     
 
     # Now statsd part
     print_info_title('Docker')
     _d = _docker
-    e = [('enabled', _d['enabled']), ('connected', _d['connected']), ('containers', len(_d['containers'])) ]
+    if _d['connected']:
+        e = [('enabled', _d['enabled']), ('connected', _d['connected']),
+             ('version',_d['version']), ('api', _d['api']),
+              ('containers', len(_d['containers'])),
+             ('images', len(_d['images'])),
+        ]
+    else:
+        e = [
+            ('enabled', {'value':_d['enabled'], 'color':'grey'}),
+            ('connected', {'value':_d['connected'], 'color':'grey'}),
+            ]
+            
     print_2tab(e)
     
     # Show errors logs if any
@@ -338,7 +327,7 @@ def do_info(show_logs):
 
 
 def do_docker_stats():
-    d = get_json('/docker/stats')
+    d = get_kunai_json('/docker/stats')
     scontainers = d.get('containers')
     simages     = d.get('images')
 
@@ -371,7 +360,7 @@ def do_docker_stats():
 
 
 def do_collectors_show(all):
-    collectors = get_json('/collectors')
+    collectors = get_kunai_json('/collectors')
     disabled = []
     for (cname, d) in collectors.iteritems():
         if not d['active'] and not all:
@@ -409,7 +398,7 @@ def do_start(daemon):
 
 def do_stop():
     try:
-        r = get_local('/stop')
+        (code, r) = get_kunai_local('/stop')
     except request_errors, exp:
         logger.error(exp)
         return
@@ -422,12 +411,12 @@ def do_join(seed=''):
         logger.error('Missing target argument. For example 192.168.0.1:6768')
         return
     try:
-        r = get_local('/agent/join/%s' % seed)
+        (code, r) = get_kunai_local('/agent/join/%s' % seed)
     except request_errors, exp:
         logger.error(exp)
         return
     try:
-        b = json.loads(r.text)
+        b = json.loads(r)
     except ValueError, exp:# bad json
         logger.error('Bad return from the server %s' % exp)
         return
@@ -467,20 +456,20 @@ def do_exec(tag='*', cmd='uname -a'):
         logger.error('Missing command')
         return
     try:
-        r = get_local('/exec/%s?cmd=%s' % (tag, cmd))
+        (code, r) = get_kunai_local('/exec/%s?cmd=%s' % (tag, cmd))
     except request_errors, exp:
         logger.error(exp)
         return
     print r
-    cid = r.text
+    cid = r
     print "Command group launch as cid", cid
     time.sleep(5) # TODO: manage a real way to get the result..
     try:
-        r = get_local('/exec-get/%s' % cid)
+        (code, r) = get_kunai_local('/exec-get/%s' % cid)
     except request_errors, exp:
         logger.error(exp)
         return
-    j = json.loads(r.text)
+    j = json.loads(r)
     #print j
     res = j['res']
     for (uuid, e) in res.iteritems():

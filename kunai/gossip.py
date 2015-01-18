@@ -37,7 +37,7 @@ from kunai.collector import Collector
 from kunai.broadcast import broadcaster
 from kunai.websocketmanager import websocketmgr
 from kunai.pubsub import pubsub
-from kunai.httpdaemon import route, response
+from kunai.httpdaemon import route, response, abort
 from kunai.encrypter import encrypter
 
 KGOSSIP = 10
