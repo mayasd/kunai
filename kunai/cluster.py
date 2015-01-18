@@ -71,6 +71,7 @@ from kunai.encrypter import encrypter
 from kunai.collectormanager import collectormgr
 from kunai.version import VERSION
 from kunai.stop import stopper
+from kunai.evaluater import evaluater
 
 
 REPLICATS = 1
@@ -1259,6 +1260,15 @@ class Cluster(object):
            self.save_check(cname, check)           
            return
 
+       
+        @route('/agent/eval/check', method='POST')
+        def agent_eval_check():
+            response.content_type = 'application/json'
+            q = request.body.getvalue()
+            print "/agent/eval/check is called for query %s" % q
+            v = evaluater.eval_expr(q)
+            return json.dumps(v)
+       
 
         @route('/agent/services')
         def agent_services():

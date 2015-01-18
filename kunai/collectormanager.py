@@ -90,7 +90,25 @@ class CollectorManager:
                 d = {'name':e['name'], 'active':e['active']}
                 res[cname] = d
         return res
-            
+
+
+    def get_data(self, s):
+        print 'GET DATA OF', s
+        elts = s.split('.')
+        d = {}
+        # construct will all results of our collectors
+        for (k,v) in self.collectors.iteritems():
+            d[k] = v['results']
+        
+        for k in elts:
+            print 'LOOOK FOR', k, 'in', d
+            if not k in d:
+                raise KeyError('Cannot find %s key %s' % (s, k))
+            print 'FOUNDED', d
+            d = d[k]
+        # last is the good one
+        return d
+    
 
 
     # Our collector threads will put back results so beware of the threads
@@ -139,7 +157,6 @@ class CollectorManager:
     # main method to export http interface. Must be in a method that got
     # a self entry
     def export_http(self):
-
         def prepare_entry(e):
             c = copy.copy(e)
             # insta are not serializable

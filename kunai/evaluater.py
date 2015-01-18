@@ -1,43 +1,62 @@
+import re
 import sys
 import ast
 import operator as op
 import math
 
 
+from kunai.collectormanager import collectormgr
+
+
 # supported operators
-operators = {ast.Add: op.add, ast.Sub: op.sub, ast.Mult: op.mul,
-             ast.Div: op.truediv, ast.Pow: op.pow, ast.BitXor: op.xor,
-             ast.USub: op.neg, ast.Eq: op.eq}
+operators = {
+    ast.Add: op.add, ast.Sub: op.sub, ast.Mult: op.mul,
+    ast.Div: op.truediv, ast.Pow: op.pow, ast.BitXor: op.xor,
+    ast.USub: op.neg, ast.Eq: op.eq, ast.Gt: op.gt, ast.Lt: op.lt,
+    ast.GtE: op.ge, ast.LtE: op.le
+}
 
 
 functions = {'abs':abs}
 
 
-def assert_(a,b):
-    if a != b:
-        print 'ERROR: NOT THE SAME', a, b
-        return False
-    return True
+#exp = '{collector.loadaverage.load1} {collector.loadaverage.load5}'
+#all_parts = re.findall('{.*?}', exp)
+
+#for p in all_parts:
+#    p = p[1:-1]
+#    print p
 
 
-def test(s):
-    e = Evaluator()
-    v = e.eval_expr(s)
-    v2 = eval(s)
-    print "Return", v, v2
-    b = assert_(v, v2)
-    if not b:
-        print 'FAIL'*10, s
-        sys.exit(2)
-
-
-class Evaluator(object):
+class Evaluater(object):
     def __init__(self):
         pass
 
     
 
     def eval_expr(self, expr):
+        # first manage {} thing and look at them
+        all_parts = re.findall('{.*?}', expr)
+
+        changes = []
+        print 'ALL PARTS', all_parts
+        for p in all_parts:
+            p = p[1:-1]
+            print p
+            if not p.startswith('collector.'):
+                continue
+            s = p[len('collector.'):]
+            print 'WILL OOK AT', s
+            v = collectormgr.get_data(s)
+            print 'Ask', s, 'got', v
+            changes.append( (p, v) )
+            
+        print 'ALL CHANGES', changes
+        if not len(changes) == len(all_parts):
+            raise ValueError('Some parts cannot be changed')
+        for (p,v) in changes:
+            expr = expr.replace('{%s}' % p, str(v))
+        # final tree
         tree = ast.parse(expr, mode='eval').body
         return self.eval_(tree)
 
@@ -106,39 +125,4 @@ class Evaluator(object):
 
 
 
-
-
-evil = "__import__('os').remove('important file')"
-
-
-try:
-    eval_expr(evil)
-except Exception, exp:
-    print "ERROR", exp
-
-test('2^6')
-test('2**6')
-test('1 + 2*3**(4^5) / (6 + -7)')
-test('1+38')
-test('(1+38)==39')
-
-test('abs(-39)')
-
-a = 38
-test("(1+a) == abs(-39)")
-
-
-exp = '{collector.loadaverage.load1} {collector.loadaverage.load5}'
-import re
-
-all_parts = re.findall('{.*?}', exp)
-
-for p in all_parts:
-    p = p[1:-1]
-    print p
-
-
-
-
-
-print 'OK'
+evaluater = Evaluater()

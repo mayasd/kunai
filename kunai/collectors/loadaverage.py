@@ -26,7 +26,7 @@ class LoadAverage(Collector):
         
         logger.debug('getLoadAvrgs: parsing')
 
-        loadAvrgs = {'1': loadAvrgs_1, '5': loadAvrgs_5, '15': loadAvrgs_15}
+        loadAvrgs = {'load1': loadAvrgs_1, 'load5': loadAvrgs_5, 'load15': loadAvrgs_15}
         
         logger.debug('getLoadAvrgs: completed, returning')
 
