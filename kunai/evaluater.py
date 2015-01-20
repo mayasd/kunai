@@ -30,11 +30,16 @@ functions = {'abs':abs}
 
 class Evaluater(object):
     def __init__(self):
-        pass
+        self.cfg_data = {}
+        self.services = {}
 
-    
+        
+    def load(self, cfg_data, services):
+        self.cfg_data = cfg_data
+        self.services = services
 
-    def eval_expr(self, expr):
+
+    def compile(self, expr, check=None):
         # first manage {} thing and look at them
         all_parts = re.findall('{.*?}', expr)
 
@@ -43,19 +48,29 @@ class Evaluater(object):
         for p in all_parts:
             p = p[1:-1]
             print p
-            if not p.startswith('collector.'):
-                continue
-            s = p[len('collector.'):]
-            print 'WILL OOK AT', s
-            v = collectormgr.get_data(s)
-            print 'Ask', s, 'got', v
-            changes.append( (p, v) )
+            if p.startswith('collector.'):
+                s = p[len('collector.'):]
+                print 'WILL LOOK AT collector', s
+                v = collectormgr.get_data(s)
+                print 'Ask', s, 'got', v
+                changes.append( (p, v) )
+            elif p.startswith('configuration.'):
+                s = p[len('configuration.'):]
+                print 'WILL LOOK AT configuration', s
+                v = self._found_params(s, check)
+                changes.append( (p, v) )
             
         print 'ALL CHANGES', changes
         if not len(changes) == len(all_parts):
             raise ValueError('Some parts cannot be changed')
         for (p,v) in changes:
             expr = expr.replace('{%s}' % p, str(v))
+        return expr
+    
+
+    def eval_expr(self, expr):
+        expr = self.compile(expr)
+        
         # final tree
         tree = ast.parse(expr, mode='eval').body
         return self.eval_(tree)
@@ -124,5 +139,76 @@ class Evaluater(object):
             raise TypeError(node)
 
 
+           
+    # Try to find the params for a macro in the foloowing objets, in that order:
+    # * check
+    # * service
+    # * main configuration
+    def _found_params(self, m, check):
+          print 'FOUND PARAM IN', m, check
+          parts = [m]
+          # if we got a |, we got a default value somewhere
+          if '|' in m:
+             parts = m.split('|', 1)
+          change_to = ''
+          print '_found_params:: parts', parts
+          for p in parts:
+             elts = [p]
+             if '.' in p:
+                elts = p.split('.')
+             elts = [e.strip() for e in elts]
+             print '_found_params:: elts', elts
+             # we will try to grok into our cfg_data for the k1.k2.k3 =>
+             # self.cfg_data[k1][k2][k3] entry if exists
+             d = None
+             founded = False
+
+             # if we got a check, we can look into it, and maybe the
+             # linked service
+             if check:
+                 # We will look into the check>service>global order
+                 # but skip serviec if it's not related with the check
+                 sname = check.get('service', '')
+                 service = {}
+                 find_into = [check, self.cfg_data]
+                 if sname and sname in self.services:
+                     service = self.services.get(sname)
+                     find_into = [check, service, self.cfg_data]
+             # if not, just the global configuration will be ok :)
+             else:
+                 find_into = [self.cfg_data]
+
+             print 'FIND INTO', find_into
+             for tgt in find_into:
+                (lfounded, ld) = self._found_params_inside(elts, tgt)
+                if not lfounded:
+                   continue
+                if lfounded:
+                   founded = True
+                   d = ld
+                   break
+             if not founded:
+                continue
+             change_to = str(d)
+             break
+          return change_to
+
+
+    # Try to found a elts= k1.k2.k3 => d[k1][k2][k3] entry
+    # if exists
+    def _found_params_inside(self, elts, d):
+             print '_found_params_inside::', elts, d
+             founded = False
+             for e in elts:
+                print '_found_params_inside:: e', e
+                if not e in d:
+                   founded = False
+                   break
+                d = d[e]
+                founded = True
+             print '_found_params_inside:: return', (founded, d)
+             return (founded, d)
+        
+        
 
 evaluater = Evaluater()

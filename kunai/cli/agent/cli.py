@@ -208,7 +208,7 @@ def do_info(show_logs):
     # Normal agent information
     print_info_title('Kunai Daemon')
     print_2tab(e)
-
+    
     # Normal agent information
     int_server = httpservers['external']
     if int_server:
@@ -273,7 +273,7 @@ def do_info(show_logs):
         if not v['active']:
             color = 'grey'
         e.append( (cname, {'value':v['active'], 'color':color}) )
-    print_2tab(e)
+    print_2tab(e, capitalize=False)
     
 
     # Now statsd part
@@ -359,11 +359,13 @@ def do_docker_stats():
 
 
 
-def do_collectors_show(all):
+def do_collectors_show(name='', all=False):
     collectors = get_kunai_json('/collectors')
     disabled = []
     for (cname, d) in collectors.iteritems():
-        if not d['active'] and not all:
+        if name and not name == cname:
+            continue
+        if not name and not d['active'] and not all:
             disabled.append(d)
             continue
         print_info_title('Collector %s' % cname)
@@ -380,8 +382,6 @@ def do_collectors_show(all):
     if len(disabled) > 0:
         print_info_title('Disabled collectors')
         cprint(','.join([ d['name'] for d in disabled]), color='grey')
-    
-
     
 
     
@@ -572,6 +572,7 @@ exports = {
     do_collectors_show : {
         'keywords': ['collectors', 'show'],
         'args': [
+            {'name' : 'name', 'default':'', 'description':'Show a specific'},
             {'name' : '--all', 'default':False, 'description':'Show all collectors, even diabled one', 'type':'bool'},            
             ],
         'description': 'Show collectors informations'
