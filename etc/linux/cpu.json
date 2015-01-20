@@ -1,6 +1,8 @@
 {
     "check": {
-	"script": "ping -c1 www.cpu.com >/dev/null", 
-	"interval": "3000s"
+	"critical_if": "{collector.loadaverage.load1}>=0.5",
+	"interval": "10s",
+
+	"load" : {"warning": 1, "critical": 2}	
     }
 }

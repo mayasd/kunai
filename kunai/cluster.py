@@ -287,7 +287,7 @@ class Cluster(object):
         # collectors will wait a bit
         self.load_check_retention()
         self.load_service_retention()
-
+        
         # Now the kv backend
         self.kv = KVBackend(self.data_dir)
         
@@ -346,6 +346,9 @@ class Cluster(object):
         collectormgr.load_collectors(self.cfg_data)
         # and their last data
         self.load_collector_retention()
+
+        # the evaluater need us to grok into our cfg_data and such things
+        evaluater.load(self.cfg_data, self.services)
         
         # Load docker thing if possible
         dockermgr.launch()
@@ -541,6 +544,10 @@ class Cluster(object):
           check['interval'] = '10s'
        if not 'script' in check:
           check['script'] = ''
+       if not 'critical_if' in check:
+          check['critical_if'] = ''
+       if not 'warning_if' in check:
+          check['warning_if'] = ''                    
        if not 'last_check' in check:
           check['last_check'] = 0
        if not 'notes' in check:
@@ -2056,6 +2063,13 @@ class Cluster(object):
 
     # Launch a check sub-process as a thread
     def launch_check(self, check):
+
+       # If critical_if available, try it
+       critical_if = check.get('critical_if')
+       if critical_if:
+           _t = evaluater.compilte(critical_if, check=check)
+           print "RES", _t
+        
        script = check['script']
        logger.debug("CHECK start: MACRO launching %s" % script, part='check')
        # First we need to change the script with good macros (between $$)       
