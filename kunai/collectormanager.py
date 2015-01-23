@@ -120,7 +120,6 @@ class CollectorManager:
     
     
     def get_data(self, s):
-        print 'GET DATA OF', s
         elts = s.split('.')
         d = {}
         # construct will all results of our collectors
@@ -128,10 +127,8 @@ class CollectorManager:
             d[k] = v['results']
         
         for k in elts:
-            print 'LOOOK FOR', k, 'in', d
             if not k in d:
                 raise KeyError('Cannot find %s key %s' % (s, k))
-            print 'FOUNDED', d
             d = d[k]
         # last is the good one
         return d
