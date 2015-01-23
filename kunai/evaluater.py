@@ -13,7 +13,7 @@ operators = {
     ast.Add: op.add, ast.Sub: op.sub, ast.Mult: op.mul,
     ast.Div: op.truediv, ast.Pow: op.pow, ast.BitXor: op.xor,
     ast.USub: op.neg, ast.Eq: op.eq, ast.Gt: op.gt, ast.Lt: op.lt,
-    ast.GtE: op.ge, ast.LtE: op.le
+    ast.GtE: op.ge, ast.LtE: op.le, ast.Mod: op.mod,
 }
 
 
@@ -68,8 +68,8 @@ class Evaluater(object):
         return expr
     
 
-    def eval_expr(self, expr):
-        expr = self.compile(expr)
+    def eval_expr(self, expr, check=None):
+        expr = self.compile(expr, check=check)
         
         # final tree
         tree = ast.parse(expr, mode='eval').body
@@ -87,6 +87,9 @@ class Evaluater(object):
         if isinstance(node, ast.Num): # <number>
             print "RETURN", node.n
             return node.n
+        elif isinstance(node, ast.Str): # <string>
+            print "RETURN", node.s
+            return node.s
         elif isinstance(node, ast.BinOp): # <left> <operator> <right>
             return operators[type(node.op)](self.eval_(node.left), self.eval_(node.right))
         elif isinstance(node, ast.Compare): # <left> <operator> <right>

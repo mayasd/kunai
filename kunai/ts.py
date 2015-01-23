@@ -13,6 +13,9 @@ import hashlib
 SERIALIZER = cPickle
 
 
+# DO NOT FORGEET:
+# sysctl -w net.core.rmem_max=26214400
+
 from kunai.stats import STATS
 from kunai.log import logger
 from kunai.threadmgr import threader

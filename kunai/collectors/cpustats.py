@@ -25,6 +25,7 @@ class CpuStats(Collector):
 
             headerRegexp = re.compile(r'.*?([%][a-zA-Z0-9]+)[\s+]?')
             itemRegexp = re.compile(r'.*?\s+(\d+)[\s+]?')
+            itemRegexpAll = re.compile(r'.*?\s+(all)[\s+]?')
             valueRegexp = re.compile(r'\d+\.\d+')
             proc = None
             try:
@@ -36,20 +37,24 @@ class CpuStats(Collector):
                 header = stats[2]
                 headerNames = re.findall(headerRegexp, header)
                 device = None
-
-                for statsIndex in range(4, len(stats)): # skip "all"
+                print "HEHEHE", stats
+                
+                for statsIndex in range(3, len(stats)): # no skip "all"
+                    print "ANALYSE", statsIndex, stats[statsIndex]
                     row = stats[statsIndex]
 
                     if not row: # skip the averages
                         break
-
+                    print "YES I CAN", row
+                    deviceMatchAll = re.match(itemRegexpAll, row)                    
                     deviceMatch = re.match(itemRegexp, row)
-
-                    if deviceMatch is not None:
+                    if deviceMatchAll is not None:
+                        device = 'cpuall'
+                    elif deviceMatch is not None:
                         device = 'CPU%s' % deviceMatch.groups()[0]
-
+                    
                     values = re.findall(valueRegexp, row.replace(',', '.'))
-
+                    
                     cpuStats[device] = {}
                     for headerIndex in range(0, len(headerNames)):
                         headerName = headerNames[headerIndex]
