@@ -544,10 +544,16 @@ class Cluster(object):
           check['interval'] = '10s'
        if not 'script' in check:
           check['script'] = ''
+       if not 'ok_output' in check:
+          check['ok_output'] = ''          
        if not 'critical_if' in check:
           check['critical_if'] = ''
+       if not 'critical_output' in check:
+          check['critical_output'] = ''
        if not 'warning_if' in check:
-          check['warning_if'] = ''                    
+          check['warning_if'] = ''
+       if not 'warning_output' in check:
+          check['warning_output'] = ''                    
        if not 'last_check' in check:
           check['last_check'] = 0
        if not 'notes' in check:
@@ -1967,6 +1973,7 @@ class Cluster(object):
                 # randomize a bit the checks
                 script = check['script']
                 logger.debug('CHECK: launching check %s:%s' % (cid, script), part='check')
+                print "LAUCN CHECK", cid, script
                 t = threader.create_and_launch(self.launch_check, name='check-%s' % cid, args=(check,))
                 cur_launchs[cid] = t
 
@@ -2063,45 +2070,61 @@ class Cluster(object):
 
     # Launch a check sub-process as a thread
     def launch_check(self, check):
-
-       # If critical_if available, try it
-       critical_if = check.get('critical_if')
-       if critical_if:
-           _t = evaluater.compilte(critical_if, check=check)
-           print "RES", _t
         
-       script = check['script']
-       logger.debug("CHECK start: MACRO launching %s" % script, part='check')
-       # First we need to change the script with good macros (between $$)       
-       it = self.macro_pat.finditer(script)
-       macros = [m.groups() for m in it]
-       # can be ('$ load.warning | 95$', 'load.warning | 95') for example
-       for (to_repl, m) in macros:
-          change_to = self._found_params(m, check)
-          script = script.replace(to_repl, change_to)
-       logger.debug("MACRO finally computed", script, part='check')
+        # If critical_if available, try it
+        critical_if = check.get('critical_if')
+        warning_if  = check.get('warning_if')
+        rc = 3 # by default unknown state and output
+        output = 'Check not configured'
+        err = ''
+        if critical_if or warning_if:
+            if critical_if:
+                b = evaluater.eval_expr(critical_if, check=check)
+                if b:
+                    output = evaluater.eval_expr(check.get('critical_output', ''))
+                    rc = 2
+            if not b and warning_if:
+                b = evaluater.eval_expr(warning_if, check=check)
+                if b:
+                    output = evaluater.eval_expr(check.get('warning_output', ''))
+                    rc = 1
+            # if unset, we are in OK
+            if rc == 3:
+                rc = 0
+                output = evaluater.eval_expr(check.get('ok_output', ''))                        
+        else:
+            script = check['script']
+            logger.debug("CHECK start: MACRO launching %s" % script, part='check')
+            # First we need to change the script with good macros (between $$)       
+            it = self.macro_pat.finditer(script)
+            macros = [m.groups() for m in it]
+            # can be ('$ load.warning | 95$', 'load.warning | 95') for example
+            for (to_repl, m) in macros:
+               change_to = self._found_params(m, check)
+               script = script.replace(to_repl, change_to)
+            logger.debug("MACRO finally computed", script, part='check')
 
-       p = subprocess.Popen(script, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, preexec_fn=os.setsid)
-       output, err = p.communicate()
-       rc = p.returncode
-       # not found error like (127) should be catch as unknown check
-       if rc > 3:
-           rc = 3
-       logger.debug("CHECK RETURN %s : %s %s %s" % (check['id'], rc, output, err), part='check')
-       did_change = (check['state_id'] != rc)
-       check['state'] = {0:'ok', 1:'warning', 2:'critical', 3:'unknown'}.get(rc, 'unknown')
-       if 0 <= rc <= 3:
-           check['state_id'] = rc
-       else:
-           check['state_id'] = 3
-       
-       check['output'] = output + err
-       check['last_check'] = int(time.time())
-       self.analyse_check(check)
+            p = subprocess.Popen(script, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, preexec_fn=os.setsid)
+            output, err = p.communicate()
+            rc = p.returncode
+            # not found error like (127) should be catch as unknown check
+            if rc > 3:
+                rc = 3
+        logger.debug("CHECK RETURN %s : %s %s %s" % (check['id'], rc, output, err), part='check')
+        did_change = (check['state_id'] != rc)
+        check['state'] = {0:'ok', 1:'warning', 2:'critical', 3:'unknown'}.get(rc, 'unknown')
+        if 0 <= rc <= 3:
+            check['state_id'] = rc
+        else:
+            check['state_id'] = 3
 
-       # Launch the handlers, some need the data if the element did change or not
-       self.launch_handlers(check, did_change)       
-    
+        check['output'] = output + err
+        check['last_check'] = int(time.time())
+        self.analyse_check(check)
+
+        # Launch the handlers, some need the data if the element did change or not
+        self.launch_handlers(check, did_change)       
+
     
     # get a check return and look it it did change a service state. Also save
     # the result in the __health KV
