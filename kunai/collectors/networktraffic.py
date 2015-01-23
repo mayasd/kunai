@@ -15,7 +15,16 @@ from kunai.collector import Collector
 
 
 class NetworkTraffic(Collector):
+    def __init__(self, config, put_result=None):
+        super(NetworkTraffic, self).__init__(config, put_result)
+        self.networkTrafficStore = {}
+        self.last_launch = 0.0
+        
     def launch(self):
+        now = int(time.time())
+        diff = now - self.last_launch
+        self.last_launch = now
+        
         logger.debug('getNetworkTraffic: start')
 
         if sys.platform == 'linux2':
@@ -32,7 +41,7 @@ class NetworkTraffic(Collector):
                 return False
 
             logger.debug('getNetworkTraffic: open success, parsing')
-
+            
             columnLine = lines[1]
             _, receiveCols , transmitCols = columnLine.split('|')
             receiveCols = map(lambda a:'recv_' + a, receiveCols.split())
@@ -41,62 +50,58 @@ class NetworkTraffic(Collector):
             cols = receiveCols + transmitCols
 
             logger.debug('getNetworkTraffic: parsing, looping')
-
+            
             faces = {}
             for line in lines[2:]:
                 if line.find(':') < 0: continue
                 face, data = line.split(':')
+                # skipping lo because we just don't care about it :)
+                if face.strip() == 'lo':
+                    continue
                 faceData = dict(zip(cols, data.split()))
                 faces[face] = faceData
 
             logger.debug('getNetworkTraffic: parsed, looping')
-
+            
             interfaces = {}
 
             # Now loop through each interface
             for face in faces:
                 key = face.strip()
-
+                
                 # We need to work out the traffic since the last check so first time we store the current value
                 # then the next time we can calculate the difference
                 try:
+                    list_of_keys = faces[face].keys()
+                    by_sec_keys = ['recv_bytes', 'trans_bytes', 'recv_packets', 'trans_packets']
                     if key in self.networkTrafficStore:
                         interfaces[key] = {}
-                        interfaces[key]['recv_bytes'] = long(faces[face]['recv_bytes']) - long(self.networkTrafficStore[key]['recv_bytes'])
-                        interfaces[key]['trans_bytes'] = long(faces[face]['trans_bytes']) - long(self.networkTrafficStore[key]['trans_bytes'])
-
-                        if interfaces[key]['recv_bytes'] < 0:
-                            interfaces[key]['recv_bytes'] = long(faces[face]['recv_bytes'])
-
-                        if interfaces[key]['trans_bytes'] < 0:
-                            interfaces[key]['trans_bytes'] = long(faces[face]['trans_bytes'])
-
-                        # Get the traffic
-                        interfaces[key]['recv_bytes/s'] = interfaces[key]['recv_bytes'] / 10
-                        interfaces[key]['trans_bytes/s'] = interfaces[key]['trans_bytes'] / 10
-
-                        interfaces[key]['recv_bytes'] = long(interfaces[key]['recv_bytes'])
-                        interfaces[key]['trans_bytes'] = long(interfaces[key]['trans_bytes'])
-
-
-                        # And update the stored value to subtract next time round
-                        self.networkTrafficStore[key]['recv_bytes'] = long(faces[face]['recv_bytes'])
-                        self.networkTrafficStore[key]['trans_bytes'] = long(faces[face]['trans_bytes'])
+                        for k in list_of_keys:
+                            interfaces[key][k] = long(faces[face][k]) - long(self.networkTrafficStore[key][k])
+                            
+                            if interfaces[key][k] < 0:
+                                interfaces[key][k] = long(faces[face][k])
+                                
+                            # Only 'recv_bytes', 'trans_bytes' need /s metrics
+                            if k in by_sec_keys:
+                                interfaces[key]['%s/s' % k] = interfaces[key][k] / diff
+                            
+                            interfaces[key][k] = long(interfaces[key][k])
+                            self.networkTrafficStore[key][k] = long(faces[face][k])
 
                     else:
                         self.networkTrafficStore[key] = {}
-                        self.networkTrafficStore[key]['recv_bytes'] = long(faces[face]['recv_bytes'])
-                        self.networkTrafficStore[key]['trans_bytes'] = long(faces[face]['trans_bytes'])
+                        for k in list_of_keys:
+                            self.networkTrafficStore[key][k] = long(faces[face][k])                            
 
                     # Logging
                     logger.debug('getNetworkTraffic: %s = %s' %  (key, self.networkTrafficStore[key]['recv_bytes']) )
                     logger.debug('getNetworkTraffic: %s = %s' % (key, self.networkTrafficStore[key]['trans_bytes']) )
 
                 except KeyError, ex:
-                    logger.error('getNetworkTraffic: no data for %s', key)
-
+                    logger.error('getNetworkTraffic: no data for %s' % key)
                 except ValueError, ex:
-                    logger.error('getNetworkTraffic: invalid data for %s', key)
+                    logger.error('getNetworkTraffic: invalid data for %s' % key)
 
             logger.debug('getNetworkTraffic: completed, returning')
             return interfaces

@@ -77,66 +77,39 @@ class Evaluater(object):
 
     
     def eval_(self, node):
-        print 'EVAL NODE', node, type(node)
-        print dir(node)
-        try:
-            print node.__dict__
-        except:
-            pass
-
         if isinstance(node, ast.Num): # <number>
-            print "RETURN", node.n
             return node.n
         elif isinstance(node, ast.Str): # <string>
-            print "RETURN", node.s
             return node.s
         elif isinstance(node, ast.BinOp): # <left> <operator> <right>
             return operators[type(node.op)](self.eval_(node.left), self.eval_(node.right))
         elif isinstance(node, ast.Compare): # <left> <operator> <right>
             left = self.eval_(node.left)
-            print ''
-            print "LEFT", left
-
-            print ""
-            print "NODE", node, node.__dict__
-
             right = self.eval_(node.comparators[0])
-            print ''
-            print 'RIGHT', right
-
             return operators[type(node.ops[0])](left, right)
         elif isinstance(node, ast.UnaryOp): # <operator> <operand> e.g., -1
             return operators[type(node.op)](self.eval_(node.operand))
         elif isinstance(node, ast.Name): # name? try to look at it
             key = node.id
             v = globals().get(key, None)
-            print 'VALUE', v
             return v
         elif isinstance(node, ast.Call): # call? dangerous, must be registered :)
             args = [self.eval_(arg) for arg in node.args]
-            print ''
-            print "CALL"
-            print node.__dict__
-            print 'END CALL'
             f = None
-            print 'attr?', isinstance(node.func, ast.Attribute)
-            print 'name?', isinstance(node.func, ast.Name)
+            #print 'attr?', isinstance(node.func, ast.Attribute)
+            #print 'name?', isinstance(node.func, ast.Name)
             if isinstance(node.func, ast.Name):
                 fname = node.func.id
-                print 'FUNCTION CALL', fname
-                print node, node.__dict__
                 f = functions.get(fname, None)
             elif isinstance(node.func, ast.Attribute):
-                print 'WTF F', node.func, node.func.__dict__, node.func.value.__dict__
-
+                print 'UNMANAGED CALL', node.func, node.func.__dict__, node.func.value.__dict__
+                
             else:
-                print 'UNKNOW FUNC'
+                print node.__dict__
                 raise TypeError(node)
-    #        elif isinstance(node.func, ast.Name):
 
             if f:
                 v = f(*args)
-                print 'FUNCITON', fname, 'called', args, "returns", v
                 return v
         else:
             raise TypeError(node)
@@ -148,19 +121,19 @@ class Evaluater(object):
     # * service
     # * main configuration
     def _found_params(self, m, check):
-          print 'FOUND PARAM IN', m, check
+
           parts = [m]
           # if we got a |, we got a default value somewhere
           if '|' in m:
              parts = m.split('|', 1)
           change_to = ''
-          print '_found_params:: parts', parts
+
           for p in parts:
              elts = [p]
              if '.' in p:
                 elts = p.split('.')
              elts = [e.strip() for e in elts]
-             print '_found_params:: elts', elts
+
              # we will try to grok into our cfg_data for the k1.k2.k3 =>
              # self.cfg_data[k1][k2][k3] entry if exists
              d = None
@@ -181,7 +154,6 @@ class Evaluater(object):
              else:
                  find_into = [self.cfg_data]
 
-             print 'FIND INTO', find_into
              for tgt in find_into:
                 (lfounded, ld) = self._found_params_inside(elts, tgt)
                 if not lfounded:
@@ -200,16 +172,13 @@ class Evaluater(object):
     # Try to found a elts= k1.k2.k3 => d[k1][k2][k3] entry
     # if exists
     def _found_params_inside(self, elts, d):
-             print '_found_params_inside::', elts, d
              founded = False
              for e in elts:
-                print '_found_params_inside:: e', e
                 if not e in d:
                    founded = False
                    break
                 d = d[e]
                 founded = True
-             print '_found_params_inside:: return', (founded, d)
              return (founded, d)
         
         

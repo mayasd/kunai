@@ -37,15 +37,12 @@ class CpuStats(Collector):
                 header = stats[2]
                 headerNames = re.findall(headerRegexp, header)
                 device = None
-                print "HEHEHE", stats
                 
                 for statsIndex in range(3, len(stats)): # no skip "all"
-                    print "ANALYSE", statsIndex, stats[statsIndex]
                     row = stats[statsIndex]
 
                     if not row: # skip the averages
                         break
-                    print "YES I CAN", row
                     deviceMatchAll = re.match(itemRegexpAll, row)                    
                     deviceMatch = re.match(itemRegexp, row)
                     if deviceMatchAll is not None:

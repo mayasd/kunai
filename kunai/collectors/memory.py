@@ -10,6 +10,7 @@ import time
 from StringIO import StringIO
 
 
+from kunai.util import lower_dict
 from kunai.log import logger
 from kunai.collector import Collector
 
@@ -17,168 +18,138 @@ from kunai.collector import Collector
 class Memory(Collector):
     def launch(self):
         #logger.debug('getMemoryUsage: start')
-
+        
         # If Linux like procfs system is present and mounted we use meminfo, else we use "native" mode (vmstat and swapinfo)
         if sys.platform == 'linux2':
-
             #logger.debug('getMemoryUsage: linux2')
-
             try:
-                #logger.debug('getMemoryUsage: attempting open')
-
-                meminfoProc = open('/proc/meminfo', 'r')
-                lines = meminfoProc.readlines()
+                with open('/proc/meminfo', 'r') as meminfoProc:
+                    lines = meminfoProc.readlines()
             except IOError, e:
                 logger.error('getMemoryUsage: exception = %s', e)
                 return False
 
-            #logger.debug('getMemoryUsage: Popen success, parsing')
-
-            meminfoProc.close()
-
             #logger.debug('getMemoryUsage: open success, parsing')
-
             regexp = re.compile(r'([0-9]+)') # We run this several times so one-time compile now
 
             meminfo = {}
 
-            #logger.debug('getMemoryUsage: parsing, looping')
-
             # Loop through and extract the numerical values
             for line in lines:
                 values = line.split(':')
-
                 try:
                     # Picks out the key (values[0]) and makes a list with the value as the meminfo value (values[1])
                     # We are only interested in the KB data so regexp that out
                     match = re.search(regexp, values[1])
 
                     if match != None:
-                        meminfo[str(values[0])] = match.group(0)
-
+                        meminfo[str(values[0])] = int(match.group(0))
                 except IndexError:
                     break
 
             #logger.debug('getMemoryUsage: parsing, looped')
-
+            
+            # put all keys in lower case
+            meminfo = lower_dict(meminfo)
             memData = {}
             memData['phys_free'] = 0
             memData['phys_used'] = 0
-            memData['cached'] = 0
+            memData['cached']    = 0
             memData['swap_free'] = 0
             memData['swap_used'] = 0
-
+            
             # Phys
             try:
                 #logger.debug('getMemoryUsage: formatting (phys)')
-
-                physTotal = int(meminfo['MemTotal'])
-                physFree = int(meminfo['MemFree'])
-                physUsed = physTotal - physFree
+                
+                physTotal = meminfo['memtotal']
+                physFree  = meminfo['memfree'] + meminfo['buffers'] + meminfo['cached']
+                physUsed  = 100 * (physTotal - float(physFree)) / physTotal
 
                 # Convert to MB
-                memData['phys_free'] = physFree / 1024
-                memData['phys_used'] = physUsed / 1024
-                memData['cached'] = int(meminfo['Cached']) / 1024
+                meminfo['phys_total'] = physTotal
+                meminfo['phys_free']  = physFree
+                meminfo['phys_used']  = physUsed
 
             # Stops the agent crashing if one of the meminfo elements isn't set
             except IndexError:
-                logger.error('getMemoryUsage: formatting (phys) IndexError - Cached, MemTotal or MemFree not present')
-
+                logger.error('getMemoryUsage: formatting (phys) IndexError - cached, memtotal or memfree not present')
             except KeyError:
-                logger.error('getMemoryUsage: formatting (phys) KeyError - Cached, MemTotal or MemFree not present')
+                logger.error('getMemoryUsage: formatting (phys) KeyError - cached, memtotal or memfree not present')
 
             logger.debug('getMemoryUsage: formatted (phys)')
 
             # Swap
             try:
                 #logger.debug('getMemoryUsage: formatting (swap)')
+                swapTotal = meminfo['swaptotal']
+                swapFree  = meminfo['swapfree']
+                if swapTotal == 0:
+                    swapUsed = 0
+                else:
+                    swapUsed  = 100 * (swapTotal - float(swapFree)) / swapTotal
 
-                swapTotal = int(meminfo['SwapTotal'])
-                swapFree = int(meminfo['SwapFree'])
-                swapUsed = swapTotal - swapFree
-
-                # Convert to MB
-                memData['swap_free'] = swapFree / 1024
-                memData['swap_used'] = swapUsed / 1024
+                meminfo['swap_free'] = swapFree
+                meminfo['swap_used'] = swapUsed
 
             # Stops the agent crashing if one of the meminfo elements isn't set
             except IndexError:
                 logger.error('getMemoryUsage: formatting (swap) IndexError - SwapTotal or SwapFree not present')
-
             except KeyError:
                 logger.error('getMemoryUsage: formatting (swap) KeyError - SwapTotal or SwapFree not present')
 
             logger.debug('getMemoryUsage: formatted (swap), completed, returning')
-
-            return memData
+            return meminfo
 
         elif sys.platform.find('freebsd') != -1:
             logger.debug('getMemoryUsage: freebsd (native)')
 
             physFree = None
-
             try:
                 try:
                     logger.debug('getMemoryUsage: attempting sysinfo')
-
+                    
                     proc = subprocess.Popen(['sysinfo', '-v', 'mem'], stdout = subprocess.PIPE, close_fds = True)
                     sysinfo = proc.communicate()[0]
-
+                    
                     if int(pythonVersion[1]) >= 6:
                         try:
                             proc.kill()
                         except Exception, e:
                             logger.debug('Process already terminated')
-
+                    
                     sysinfo = sysinfo.split('\n')
-
                     regexp = re.compile(r'([0-9]+)') # We run this several times so one-time compile now
 
                     for line in sysinfo:
-
                         parts = line.split(' ')
-
                         if parts[0] == 'Free':
-
                             logger.debug('getMemoryUsage: parsing free')
-
                             for part in parts:
-
                                 match = re.search(regexp, part)
-
                                 if match != None:
                                     physFree = match.group(0)
                                     logger.debug('getMemoryUsage: sysinfo: found free %s', physFree)
 
                         if parts[0] == 'Active':
-
                             logger.debug('getMemoryUsage: parsing used')
 
                             for part in parts:
-
                                 match = re.search(regexp, part)
-
                                 if match != None:
                                     physUsed = match.group(0)
                                     logger.debug('getMemoryUsage: sysinfo: found used %s', physUsed)
 
                         if parts[0] == 'Cached':
-
                             logger.debug('getMemoryUsage: parsing cached')
-
                             for part in parts:
-
                                 match = re.search(regexp, part)
-
                                 if match != None:
                                     cached = match.group(0)
                                     logger.debug('getMemoryUsage: sysinfo: found cached %s', cached)
 
                 except OSError, e:
-
                     logger.debug('getMemoryUsage: sysinfo not available')
-
                 except Exception, e:
                     logger.error('getMemoryUsage: exception = %s', traceback.format_exc())
             finally:

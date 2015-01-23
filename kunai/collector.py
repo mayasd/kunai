@@ -32,7 +32,7 @@ class Collector:
         self.mysqlConnectionsStore = None
         self.mysqlSlowQueriesStore = None
         self.mysqlVersion = None
-        self.networkTrafficStore = {}
+
         self.nginxRequestsStore = None
         self.mongoDBStore = None
         self.apacheTotalAccesses = None

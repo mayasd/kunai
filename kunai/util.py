@@ -30,3 +30,11 @@ def to_best_int_float(val):
    if i == f:
       return i
    return f
+
+
+# get a dict but with key as lower
+def lower_dict(d):
+   r = {}
+   for (k,v) in d.iteritems():
+      r[k.lower()] = v
+   return r
