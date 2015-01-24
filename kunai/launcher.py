@@ -7,6 +7,7 @@ import time
 import json
 import signal
 
+
 from kunai.cluster import Cluster
 from kunai.log import cprint, logger
 from kunai.version import VERSION
@@ -148,8 +149,8 @@ class Launcher(object):
         del self.fpid
         self.pid = os.getpid()
         logger.info("Daemonization done: pid=%d" % self.pid)
-        
 
+        
     def do_daemon_init_and_start(self, is_daemon=False):
         self.change_to_workdir()
         self.check_parallel_run()

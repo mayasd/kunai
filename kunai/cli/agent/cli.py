@@ -143,9 +143,20 @@ def do_state(name=''):
         cprint(output.strip(), color='grey')
 
     print "Checks:"
-    for (cname, check) in d['checks'].iteritems():
+    cnames = d['checks'].keys()
+    cnames.sort()
+    part = ''
+    for cname in cnames:
+        check = d['checks'][cname]        
         state = check['state_id']
-        cprint('\t%s ' % cname.ljust(20),end='')
+        # Show like aggregation like, so look at the first name before /
+        cpart = cname.split('/', 1)[0]
+        if cpart == part:
+            lname = cname.replace(part, ' '*len(part))
+            cprint('\t%s ' % lname.ljust(20),end='')
+        else:
+            cprint('\t%s ' % cname.ljust(20),end='')
+        part = cpart
         c = {0:'green', 2:'red', 1:'yellow', 3:'cyan'}.get(state, 'cyan')
         state = {0:'OK', 2:'CRITICAL', 1:'WARNING', 3:'UNKNOWN'}.get(state, 'UNKNOWN')
         cprint('%s - ' % state.ljust(8), color=c, end='')
@@ -360,7 +371,12 @@ def do_docker_stats():
 
 
 def do_collectors_show(name='', all=False):
-    collectors = get_kunai_json('/collectors')
+    try:
+        collectors = get_kunai_json('/collectors')
+    except request_errors, exp:
+        logger.error(exp)
+        return
+        
     disabled = []
     for (cname, d) in collectors.iteritems():
         if name and not name == cname:
@@ -384,7 +400,26 @@ def do_collectors_show(name='', all=False):
         cprint(','.join([ d['name'] for d in disabled]), color='grey')
     
 
+
+def do_collectors_list():
+    try:
+        collectors = get_kunai_json('/collectors')
+    except request_errors, exp:
+        logger.error(exp)
+        return
+    cnames = collectors.keys()
+    cnames.sort()
+    for cname in cnames:
+        d = collectors[cname]
+        cprint(cname.ljust(15)+':', end='')
+        if d['active']:
+            cprint('enabled', color='green')
+        else:
+            cprint('disabled', color='grey')            
     
+
+        
+        
 # Main daemon function. Currently in blocking mode only
 def do_start(daemon):
     cprint('Starting kunai daemon', color='green')
@@ -576,6 +611,13 @@ exports = {
             {'name' : '--all', 'default':False, 'description':'Show all collectors, even diabled one', 'type':'bool'},            
             ],
         'description': 'Show collectors informations'
+        },
+
+    do_collectors_list : {
+        'keywords': ['collectors', 'list'],
+        'args': [
+            ],
+        'description': 'Show collectors list'
         },
 
     
