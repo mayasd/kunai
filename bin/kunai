@@ -25,6 +25,22 @@ from kunai.version import VERSION
 
 logger.setLevel('WARNING')
 
+banner = r'''
+        ___           ___           ___           ___
+       /__/|         /__/\         /__/\         /  /\        ___
+      |  |:|         \  \:\        \  \:\       /  /::\      /  /\
+      |  |:|          \  \:\        \  \:\     /  /:/\:\    /  /:/
+    __|  |:|      ___  \  \:\   _____\__\:\   /  /:/~/::\  /__/::\
+   /__/\_|:|____ /__/\  \__\:\ /__/::::::::\ /__/:/ /:/\:\ \__\/\:\__
+   \  \:\/:::::/ \  \:\ /  /:/ \  \:\~~\~~\/ \  \:\/:/__\/    \  \:\/\
+    \  \::/~~~~   \  \:\  /:/   \  \:\  ~~~   \  \::/          \__\::/
+     \  \:\        \  \:\/:/     \  \:\        \  \:\          /__/:/
+      \  \:\        \  \::/       \  \:\        \  \:\         \__\/
+       \__\/         \__\/         \__\/         \__\/
+'''
+
+
+
 # Handle some signals
 def sig_handler(signalnum, handle):
     """ Handle some signals """
@@ -314,6 +330,7 @@ if __name__ == '__main__':
 
     # if just call kunai, we must show the available commands
     if len(command_args) == 0:
+        cprint(banner, color='blue')
         parser.print_help()
         CLI.print_list()
         sys.exit(0)
