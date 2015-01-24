@@ -511,7 +511,6 @@ class Cluster(object):
           loaded = json.loads(f.read())
           for (cid, c) in loaded.iteritems():
              if cid in self.checks:
-                print "C", c
                 check = self.checks[cid]
                 to_load = ['last_check', 'output', 'state', 'state_id']
                 for prop in to_load:

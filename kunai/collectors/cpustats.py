@@ -48,7 +48,7 @@ class CpuStats(Collector):
                     if deviceMatchAll is not None:
                         device = 'cpuall'
                     elif deviceMatch is not None:
-                        device = 'CPU%s' % deviceMatch.groups()[0]
+                        device = 'cpu%s' % deviceMatch.groups()[0]
                     
                     values = re.findall(valueRegexp, row.replace(',', '.'))
                     
