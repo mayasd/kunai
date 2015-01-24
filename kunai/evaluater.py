@@ -6,7 +6,7 @@ import math
 
 
 from kunai.collectormanager import collectormgr
-
+from kunai.log import logger
 
 # supported operators
 operators = {
@@ -19,13 +19,6 @@ operators = {
 
 functions = {'abs':abs}
 
-
-#exp = '{collector.loadaverage.load1} {collector.loadaverage.load5}'
-#all_parts = re.findall('{.*?}', exp)
-
-#for p in all_parts:
-#    p = p[1:-1]
-#    print p
 
 
 class Evaluater(object):
@@ -44,23 +37,20 @@ class Evaluater(object):
         all_parts = re.findall('{.*?}', expr)
 
         changes = []
-        print 'ALL PARTS', all_parts
+
         for p in all_parts:
             p = p[1:-1]
-            print p
+
             if p.startswith('collector.'):
                 s = p[len('collector.'):]
-                print 'WILL LOOK AT collector', s
                 v = collectormgr.get_data(s)
-                print 'Ask', s, 'got', v
+                logger.debug('Ask', s, 'got', v)
                 changes.append( (p, v) )
             elif p.startswith('configuration.'):
                 s = p[len('configuration.'):]
-                print 'WILL LOOK AT configuration', s
                 v = self._found_params(s, check)
                 changes.append( (p, v) )
             
-        print 'ALL CHANGES', changes
         if not len(changes) == len(all_parts):
             raise ValueError('Some parts cannot be changed')
         for (p,v) in changes:

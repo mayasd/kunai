@@ -143,7 +143,15 @@ class CLICommander(object):
             
         mod = d.get(keyword, None)
         if mod is None:
-            logger.error("UNKNOWN command %s" % keyword)
+            if sub_cmd == 'global':
+                if keyword in self.keywords:
+                    # ok it's a known sub part, like collectors, just
+                    # print it's own sub commands
+                    self.print_list(keyword)                    
+                else:
+                    logger.error("UNKNOWN command %s" % keyword)
+            else:
+                logger.error("UNKNOWN command %s" % keyword)
             return
 
         # Now prepare a new parser, for the command call this time
@@ -184,7 +192,7 @@ class CLICommander(object):
         f(*cmd_args, **cmd_opts.__dict__)
 
     
-    def print_list(self):
+    def print_list(self, keyword=''):
         print "Available commands:"
         all_from = {}
         sub_cmds = self.keywords.keys()
@@ -193,6 +201,10 @@ class CLICommander(object):
         sub_cmds.insert(0, 'global')
         
         for cmd in sub_cmds:
+            # If we did filter a specific keyword, bailout this
+            # one
+            if keyword and cmd != keyword:
+                continue
             prefix = cmd
             if cmd == 'global':
                 prefix = ''
