@@ -20,6 +20,7 @@ operators = {
 functions = {'abs':abs}
 
 
+names = {'True':True, 'False':False}
 
 class Evaluater(object):
     def __init__(self):
@@ -53,8 +54,10 @@ class Evaluater(object):
             
         if not len(changes) == len(all_parts):
             raise ValueError('Some parts cannot be changed')
+
         for (p,v) in changes:
             expr = expr.replace('{%s}' % p, str(v))
+
         return expr
     
 
@@ -81,7 +84,7 @@ class Evaluater(object):
             return operators[type(node.op)](self.eval_(node.operand))
         elif isinstance(node, ast.Name): # name? try to look at it
             key = node.id
-            v = globals().get(key, None)
+            v = names.get(key, None)
             return v
         elif isinstance(node, ast.Call): # call? dangerous, must be registered :)
             args = [self.eval_(arg) for arg in node.args]

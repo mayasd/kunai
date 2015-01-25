@@ -1,11 +1,19 @@
 {
     "service": {
         "tags": ["master"],
-        "port": 8000,
-        "check": {
-            "script": "/bin/true",
-            "interval": "10s",
+        "port": 6379,
+	"apply_on": "redis",
+	
+	"check": {
+	    
+	    "ok_output": "'OK: Redis is available'",
+	    
+	    "critical_if": "{collector.redis.available} == False",
+	    "critical_output": "'CRITICAL: Redis is down!'",
+	    
+	    "interval": "10s",
+	    
 	    "handlers": ["default"]
-        }
+	}
     }
 }
