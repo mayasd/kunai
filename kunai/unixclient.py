@@ -10,13 +10,8 @@ import os
 import sys
 import base64
 import uuid
-#import socket
 import time
 import json
-#import urllib2
-#import urllib
-#import httplib
-#from urlparse import urlsplit
 import socket
 import urllib2
 import urllib
@@ -77,7 +72,7 @@ class UnixSocketHandler(urllib2.AbstractHTTPHandler):
 
 
 
-request_errors = (urllib2.URLError, rq.exceptions.ConnectionError)
+request_errors = (urllib2.URLError, rq.exceptions.ConnectionError, )
 
 
 
