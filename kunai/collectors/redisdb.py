@@ -18,12 +18,12 @@ class Redis(Collector):
             import redis
         except ImportError:
             logger.error('Unable to import redis library')
-            return False
+            return {'available':False}            
 
         now = int(time.time())
         diff = now - self.last_launch
         self.last_launch = now
-        
+
         conn = redis.Redis()
         
         start = time.time()
@@ -31,6 +31,9 @@ class Redis(Collector):
             info = conn.info()
         except ValueError, e:
             raise
+        except redis.ConnectionError, exp:
+            logger.info('Redis connexion fail: %s' % exp)
+            return {'available':False}
         except Exception, e:
             raise
 
