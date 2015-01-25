@@ -112,6 +112,7 @@ class Cluster(object):
         self.checks = {}
         self.services = {}
         self.generators = {}
+        self.detectors = {}        
         self.handlers = {}
         
         # keep a list of the checks names that match our tags
@@ -432,6 +433,16 @@ class Cluster(object):
           gname = os.path.splitext(fname)[0]
           self.import_generator(generator, 'file:%s' % fname, gname, mod_time=mod_time)
 
+       if 'detector' in o:
+           detector = o['detector']
+           if not isinstance(detector, dict):
+               logger.log('ERROR: the detector from the file %s is not a valid dict' % fp)
+               sys.exit(2)
+           mod_time = int(os.path.getmtime(fp))
+           fname = fp[len(self.cfg_dir)+1:]
+           gname = os.path.splitext(fname)[0]
+           self.import_detector(detector, 'file:%s' % fname, gname, mod_time=mod_time)
+          
        if 'graphite' in o:
            graphite = o['graphite']
            if not isinstance(graphite, dict):
@@ -713,6 +724,40 @@ class Cluster(object):
 
 
 
+    # Detectors will run rules based on collectors and such things, and will tag the local node
+    # if the rules are matching
+    def import_detector(self, detector, fr, gname, mod_time=0):        
+        detector['from'] = fr
+        detector['name'] = detector['id'] = gname
+        if not 'notes' in detector:
+            detector['notes'] = ''
+        if not 'apply_on' in detector:
+            # we take the basename of this check directory for the apply_on
+            # and if /, take the detector name
+            apply_on = os.path.basename(os.path.dirname(gname))
+            if not apply_on:
+                apply_on = detector['name']
+            detector['apply_on'] = detector['name']
+
+        for prop in ['tags', 'apply_if']:
+            if not prop in detector:
+                logger.warning('Bad detector, missing property %s in the detector %s' % (prop, gname))
+                return
+        if not isinstance(detector['tags'], list):
+            logger.warning('Bad detector, tags is not a list in the detector %s' % gname)
+            return
+            
+        # We will try not to hummer the detector
+        detector['modification_time'] = mod_time
+
+        # Do not lunach too much
+        detector['last_launch'] = 0
+        
+        # Add it into the detectors list
+        self.detectors[detector['id']] = detector
+        
+        
+
     # We have a new service from the HTTP, save it where it need to be
     def save_service(self, sname, service):        
         p = os.path.normpath(os.path.join(self.cfg_dir, sname+'.json'))
@@ -874,6 +919,8 @@ class Cluster(object):
     def launch_generator_thread(self):
         self.generator_thread = threader.create_and_launch(self.do_generator_thread, name='generator-thread')
 
+    def launch_detector_thread(self):
+        self.detector_thread = threader.create_and_launch(self.do_detector_thread, name='detector-thread')        
         
     def launch_replication_backlog_thread(self):
        self.replication_backlog_thread = threader.create_and_launch(self.do_replication_backlog_thread, name='replication-backlog-thread')
@@ -2008,6 +2055,31 @@ class Cluster(object):
            time.sleep(1)
 
 
+    # Main thread for launching detectors
+    def do_detector_thread(self):
+       logger.log('DETECTOR thread launched', part='detector')
+       cur_launchs = {}
+       while not self.interrupted:
+           #logger.debug('... collectors...')
+           now = int(time.time())
+           for (gname, gen) in self.detectors.iteritems():
+               logger.debug('LOOK AT DETECTOR', gen)
+               interval   = int(gen['interval'].split('s')[0]) # todo manage like it should
+               should_be_launch = gen['last_launch'] < int(time.time()) - interval
+               if should_be_launch:
+                   print "LAUNCHING DETECTOR", gen
+                   gen['last_launch'] = int(time.time())
+                   do_apply = evaluater.eval_expr(gen['apply_if'])
+                   print "DO APPLY?", do_apply
+                   if do_apply:
+                       tags = gen['tags']
+                       for tag in tags:
+                           if tag not in self.tags:
+                               print "ADDING NEW TAGS", tag
+           time.sleep(1)
+
+
+           
            
     # Try to find the params for a macro in the foloowing objets, in that order:
     # * check
