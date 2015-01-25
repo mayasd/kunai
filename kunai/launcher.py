@@ -182,6 +182,7 @@ class Launcher(object):
         c.launch_check_thread()
         c.launch_collector_thread()
         c.launch_generator_thread()
+        c.launch_detector_thread()        
     
         if 'kv' in c.tags:
             c.launch_replication_backlog_thread()

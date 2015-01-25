@@ -1,3 +1,4 @@
+import os
 import re
 import sys
 import ast
@@ -7,6 +8,7 @@ import math
 
 from kunai.collectormanager import collectormgr
 from kunai.log import logger
+from kunai.misc.IPy import IP
 
 # supported operators
 operators = {
@@ -17,7 +19,16 @@ operators = {
 }
 
 
-functions = {'abs':abs}
+def fileexists(p):
+    return os.path.exists(p)
+
+
+def ip_in_range(ip, _range):
+    ip_range = IP(_range)
+    return ip in ip_range
+
+
+functions = {'abs':abs, 'fileexists':fileexists, 'ip_in_range': ip_in_range}
 
 
 names = {'True':True, 'False':False}
