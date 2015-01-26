@@ -72,6 +72,7 @@ from kunai.collectormanager import collectormgr
 from kunai.version import VERSION
 from kunai.stop import stopper
 from kunai.evaluater import evaluater
+from kunai.detectormgr import detecter
 
 
 REPLICATS = 1
@@ -356,6 +357,10 @@ class Cluster(object):
         
         # Our main object for gossip managment
         self.gossip = Gossip(self.nodes, self.nodes_lock, self.addr, self.port, self.name, self.incarnation, self.uuid, self.tags, self.seeds, self.bootstrap)
+
+        # About detecting tags and such things
+        detecter.load(self)
+        detecter.export_http()
         
         # get the message in a pub-sub way
         pubsub.sub('manage-message', self.manage_message_pub)
@@ -920,7 +925,7 @@ class Cluster(object):
         self.generator_thread = threader.create_and_launch(self.do_generator_thread, name='generator-thread')
 
     def launch_detector_thread(self):
-        self.detector_thread = threader.create_and_launch(self.do_detector_thread, name='detector-thread')        
+        self.detector_thread = threader.create_and_launch(detecter.do_detector_thread, name='detector-thread')        
         
     def launch_replication_backlog_thread(self):
        self.replication_backlog_thread = threader.create_and_launch(self.do_replication_backlog_thread, name='replication-backlog-thread')
@@ -2054,7 +2059,7 @@ class Cluster(object):
                    g.launch_command()
            time.sleep(1)
 
-
+    '''
     # Main thread for launching detectors
     def do_detector_thread(self):
        logger.log('DETECTOR thread launched', part='detector')
@@ -2077,7 +2082,7 @@ class Cluster(object):
                            if tag not in self.tags:
                                print "ADDING NEW TAGS", tag
            time.sleep(1)
-
+    '''
 
            
            
