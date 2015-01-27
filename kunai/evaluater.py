@@ -5,6 +5,10 @@ import ast
 import operator as op
 import math
 
+try:
+    import apt
+except ImportError:
+    apt = None
 
 from kunai.collectormanager import collectormgr
 from kunai.log import logger
@@ -27,8 +31,47 @@ def ip_in_range(ip, _range):
     ip_range = IP(_range)
     return ip in ip_range
 
+def grep(s, p, regexp=False):
+    if not os.path.exists(p):
+        return False
+    try:
+        f = open(p, 'r')
+        lines = f.readlines()
+    except Exception, exp:
+        logger.debug('Trying to grep file %s but cannot open/read it: %s' % (p, exp))
+        return False
+    if regexp:
+        try:
+            pat = re.compile(s)
+        except Exception, exp:
+            logger.debug('Cannot compile regexp expression: %s')
+        return False
+    if regexp:
+        for line in lines:
+            if pat.search(line):
+                return True
+    else:
+        for line in lines:
+            if s in line:
+                return True
+    return False
+        
 
-functions = {'abs':abs, 'fileexists':fileexists, 'ip_in_range': ip_in_range}
+deb_cache = None
+def has_package(s):
+    global deb_cache
+    if apt:
+        if not deb_cache:
+            deb_cache = apt.Cache()
+        return s in deb_cache
+    return False
+
+
+functions = {
+    'abs':abs, 'fileexists':fileexists,
+    'ip_in_range': ip_in_range, 'grep':grep,
+    'has_package':has_package, 
+}
 
 
 names = {'True':True, 'False':False}
