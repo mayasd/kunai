@@ -146,7 +146,9 @@ class Cluster(object):
         
         # By default, we are alive :)
         self.state = 'alive'
-        self.addr = socket.gethostname()#'0.0.0.0'
+        self.addr = socket.gethostname() #'0.0.0.0'
+        self.listening_addr = '0.0.0.0'
+        
         #self.broadcasts = []
 
         self.data_dir = os.path.abspath('/var/lib/kunai/')
@@ -944,7 +946,8 @@ class Cluster(object):
 
     def launch_udp_listener(self):
         self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
-        self.udp_sock.bind((self.addr, self.port))
+        print "OPENING UDP", self.addr
+        self.udp_sock.bind((self.listening_addr, self.port))
         logger.log("UDP port open", self.port, part='udp')
         while not self.interrupted:
             try:
@@ -1024,7 +1027,7 @@ class Cluster(object):
                             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
                             sock.sendto(enc_ret_msg, addr)
                             sock.close()
-                        except socket.timeout, exp:
+                        except (socket.timeout, socket.gaierror), exp:
                             # cannot reach even us? so it's really dead, let the timeout do its job on _from
                             pass
                     # Do the indirect ping as a sub-thread
@@ -1142,10 +1145,6 @@ class Cluster(object):
         # can easily forward messages
         websocketmgr.set(self.webso)
         self.webso.run()
-
-
-    def forward_to_websocket(self, msg):
-        websocketmgr.forward(masg)
 
 
     # TODO: SPLIT into modules :)
@@ -1601,7 +1600,7 @@ class Cluster(object):
                 return abort(400, 'BAD cid')
             return json.dumps(res)
         
-        self.external_http_thread = threader.create_and_launch(httpdaemon.run, name='external-http-thread', args=(self.addr, self.port, ''), essential=True)
+        self.external_http_thread = threader.create_and_launch(httpdaemon.run, name='external-http-thread', args=(self.listening_addr, self.port, ''), essential=True)
         self.unixsocket_http_thread = threader.create_and_launch(httpdaemon.run, name='external-http-thread', args=('', 0, self.socket_path,), essential=True)
 
         
