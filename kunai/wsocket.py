@@ -20,7 +20,7 @@ class WebSocketBackend(object):
     def __init__(self, clust):
         self.clust = clust
         port = clust.websocket.get('port', 6769)
-        self.server = SimpleWebSocketServer(clust.addr, port, WebExporter)
+        self.server = SimpleWebSocketServer(clust.listening_addr, port, WebExporter)
 
 
     def run(self):
@@ -35,13 +35,10 @@ class WebSocketBackend(object):
         try:
             msg = json.dumps(o)
         except ValueError:
-            print "BAD MESSAGE"
             return
         for client in self.server.connections.itervalues():
-            print "SENDING"*100
             try:
                 client.sendMessage(msg)
-            except Exception as n:
-                print n
-            print "SENT DONE"*100
+            except Exception as exp:
+                logger.error('Cannot send websocket message: %s' % exp, part='websocket')
         

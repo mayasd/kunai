@@ -956,7 +956,14 @@ function do_webso_connect(){
 	webso_con.onmessage = function (e) {
 	    console.log("Socket message:", e.data);
 	    // Load the host update as a json dict
-	    var o = JSON.parse(e.data);
+	    var oraw = JSON.parse(e.data);
+	    if(oraw.channel != 'gossip'){
+		console.log('Unmanaged websocket message '+ oraw);
+		return;
+	    }
+	    
+	    o = oraw.payload;
+	    
 	    var name = o.name;
 	    // Delete the previously add host
 	    nodes = $.grep(nodes, function(h) {

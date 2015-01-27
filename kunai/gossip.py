@@ -428,8 +428,8 @@ class Gossip(object):
             logger.debug('PING got a return from %s' %  other['name'], len(ret), part='gossip')
             # An aswer? great it is alive!
             self.set_alive(other, strong=True)
-        except socket.timeout, exp:
-            logger.debug("PING: timeout joining the other node %s:%s : %s" % (addr, port, exp), part='gossip')
+        except (socket.timeout, socket.gaierror), exp:
+            logger.debug("PING: error joining the other node %s:%s : %s" % (addr, port, exp), part='gossip')
             logger.debug("PING: go indirect mode", part='gossip')
             possible_relays = []
             with self.nodes_lock:
@@ -514,7 +514,7 @@ class Gossip(object):
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
             sock.sendto(enc_message, (addr, port) )
             logger.debug('BROADCAST: sent %d message (len=%d) to %s:%s' % (len(stack), len(enc_message), addr, port), part='gossip')
-        except socket.timeout, exp:
+        except (socket.timeout, socket.gaierror), exp:
             logger.debug("ERROR: cannot sent the message %s" % exp, part='gossip')
         try:
             sock.close()
@@ -712,7 +712,7 @@ class Gossip(object):
 
     
     def forward_to_websocket(self, msg):
-        websocketmgr.forward(msg)
+        websocketmgr.forward({'channel': 'gossip', 'payload': msg})
 
 
 
