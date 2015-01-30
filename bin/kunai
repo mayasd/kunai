@@ -92,6 +92,10 @@ class CLICommander(object):
         
         logger.debug("Loading the cli directory %s" % cli_mods_dir)
         cli_mods_dirs = [os.path.join(cli_mods_dir, d) for d in os.listdir(cli_mods_dir) if os.path.isdir(os.path.join(cli_mods_dir, d))]
+
+        # Link the CONFIG objet into the common
+        # cli mod
+        cli_mod.CONFIG = self.config
         
         for d in cli_mods_dirs:
             f = os.path.join(d, 'cli.py')
@@ -101,8 +105,6 @@ class CLICommander(object):
                 sys.path.append(d)
                 # Load this PATH/cli.py file
                 m = imp.load_source(dname, f)
-                # Link the CONFIG objet into it
-                m.CONFIG = self.config
                 exports = getattr(m, 'exports', {})
                 for (f, v) in exports.iteritems():
                     m_keywords = v.get('keywords', [])
