@@ -37,7 +37,8 @@ from kunai.cluster import Cluster
 from kunai.log import cprint, logger
 from kunai.version import VERSION
 from kunai.launcher import Launcher
-
+from kunai.unixclient import get_json, get_local, request_errors
+from kunai.cli import get_kunai_json, get_kunai_local, print_info_title, print_2tab
 
 # If not requests we should exit because the
 # daemon cannot be in a good shape at all
@@ -46,25 +47,6 @@ if rq is None:
     sys.exit(2)
 
 
-# Will be populated by the shinken CLI command
-CONFIG = None
-
-def get_local_socket():
-    return CONFIG.get('socket', '/var/lib/kunai/kunai.sock')
-
-
-from kunai.unixclient import get_json, get_local, request_errors
-
-
-def get_kunai_json(uri):
-    local_socket = get_local_socket()
-    return get_json(uri, local_socket)
-
-
-def get_kunai_local(uri):
-    local_socket = get_local_socket()
-    return get_local(uri, local_socket)
-    
 
 ############# ********************        MEMBERS management          ****************###########    
 
@@ -169,30 +151,6 @@ def do_version():
     cprint(VERSION)
     
     
-def print_info_title(title):
-    #t = title.ljust(15)
-    #s = '=================== %s ' % t
-    #s += '='*(50 - len(s))
-    #cprint(s)
-    cprint('========== [%s]:' % title)
-
-
-def print_2tab(e, capitalize=True, col_size=20):
-    for (k, v) in e:
-        label = k
-        if capitalize:
-            label = label.capitalize()
-        s = '%s: ' % label
-        s = s.ljust(col_size)
-        cprint(s, end='', color='blue')
-        # If it's a dict, we got additiionnal data like color or type
-        if isinstance(v, dict):
-            color = v.get('color', 'green')
-            _type = v.get('type', 'std')
-            value = v.get('value')
-            cprint(value, color=color)
-        else:
-            cprint(v, color='green')
     
     
 def do_info(show_logs):
@@ -335,89 +293,6 @@ def do_info(show_logs):
         
     logger.debug('Raw information: %s' % d)
     
-
-
-def do_docker_stats():
-    d = get_kunai_json('/docker/stats')
-    scontainers = d.get('containers')
-    simages     = d.get('images')
-
-    print_info_title('Docker Stats')
-    for (cid, stats) in scontainers.iteritems():
-        print_info_title('Container:%s' % cid)
-        keys = stats.keys()
-        keys.sort()
-        e = []
-        for k in keys:
-            sd = stats[k]
-            e.append( (k, sd['value']) )
-            
-        # Normal agent information
-        print_2tab(e, capitalize=False, col_size=30)
-
-    for (cid, stats) in simages.iteritems():
-        print_info_title('Image:%s (sum)' % cid)
-        keys = stats.keys()
-        keys.sort()
-        e = []
-        for k in keys:
-            sd = stats[k]
-            e.append( (k, sd['value']) )
-            
-        # Normal agent information
-        print_2tab(e, capitalize=False, col_size=30)
-
-
-
-
-def do_collectors_show(name='', all=False):
-    try:
-        collectors = get_kunai_json('/collectors')
-    except request_errors, exp:
-        logger.error(exp)
-        return
-        
-    disabled = []
-    for (cname, d) in collectors.iteritems():
-        if name and not name == cname:
-            continue
-        if not name and not d['active'] and not all:
-            disabled.append(d)
-            continue
-        print_info_title('Collector %s' % cname)
-        # for pretty print in color, need to have both pygments and don't
-        # be in a | or a file dump >, so we need to have a tty ^^
-        if pygments and sys.stdout.isatty():
-            lexer = pygments.lexers.get_lexer_by_name("json", stripall=False)
-            formatter = pygments.formatters.TerminalFormatter()
-            code = json.dumps(d, indent=4)
-            result = pygments.highlight(code, lexer, formatter)
-            print result
-        else:
-            pprint(d)
-    if len(disabled) > 0:
-        print_info_title('Disabled collectors')
-        cprint(','.join([ d['name'] for d in disabled]), color='grey')
-    
-
-
-def do_collectors_list():
-    try:
-        collectors = get_kunai_json('/collectors')
-    except request_errors, exp:
-        logger.error(exp)
-        return
-    cnames = collectors.keys()
-    cnames.sort()
-    for cname in cnames:
-        d = collectors[cname]
-        cprint(cname.ljust(15)+':', end='')
-        if d['active']:
-            cprint('enabled', color='green')
-        else:
-            cprint('disabled', color='grey')            
-    
-
         
         
 # Main daemon function. Currently in blocking mode only
@@ -524,51 +399,6 @@ def do_exec(tag='*', cmd='uname -a'):
             
 
 
-def do_detect_list():
-    try:
-        (code, r) = get_kunai_local('/agent/detectors')
-    except request_errors, exp:
-        logger.error(exp)
-        return
-
-    try:
-        d = json.loads(r)
-    except ValueError, exp:# bad json
-        logger.error('Bad return from the server %s' % exp)
-        return
-
-    e = []
-    for i in d:
-        e.append( (i['name'], ','.join(i['tags']) ) )
-
-    # Normal agent information
-    print_info_title('Detectors')
-    print_2tab(e)
-    
-
-def do_detect_run():
-    try:
-        (code, r) = get_kunai_local('/agent/detectors/run')
-    except request_errors, exp:
-        logger.error(exp)
-        return
-
-    try:
-        d = json.loads(r)
-    except ValueError, exp:# bad json
-        logger.error('Bad return from the server %s' % exp)
-        return
-
-    print_info_title('Detectors results')
-    all_tags = []
-    new_tags = []
-    for (k, v) in d.iteritems():
-        all_tags.extend(v['tags'])
-        new_tags.extend(v['new_tags'])
-    e = [('Tags', ','.join(all_tags))]
-    e.append( ('New tags', {'value': ','.join(new_tags), 'color':'green'}) )
-    print_2tab(e)    
-    
     
 
         
@@ -646,44 +476,6 @@ exports = {
             {'name' : 'name', 'default':'', 'description':'Name of the node to print state. If void, take our localhost one'},
             ],
         },
-
-    do_docker_stats : {
-        'keywords': ['docker', 'stats'],
-        'args': [],
-        'description': 'Show stats from docker containers and images'
-        },
-
-    do_collectors_show : {
-        'keywords': ['collectors', 'show'],
-        'args': [
-            {'name' : 'name', 'default':'', 'description':'Show a specific'},
-            {'name' : '--all', 'default':False, 'description':'Show all collectors, even diabled one', 'type':'bool'},            
-            ],
-        'description': 'Show collectors informations'
-        },
-
-    do_collectors_list : {
-        'keywords': ['collectors', 'list'],
-        'args': [
-            ],
-        'description': 'Show collectors list'
-        },
-
-    do_detect_list : {
-        'keywords': ['detectors', 'list'],
-        'args': [
-            ],
-        'description': 'Show detectors list'
-        },
-
-
-    do_detect_run : {
-        'keywords': ['detectors', 'run'],
-        'args': [
-            ],
-        'description': 'Run detectors'
-        },
-    
     
 
     }
