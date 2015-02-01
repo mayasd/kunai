@@ -38,7 +38,7 @@ from kunai.log import cprint, logger
 from kunai.version import VERSION
 from kunai.launcher import Launcher
 from kunai.unixclient import get_json, get_local, request_errors
-from kunai.cli import get_kunai_json, get_kunai_local, print_info_title, print_2tab
+from kunai.cli import get_kunai_json, get_kunai_local, print_info_title, print_2tab, CONFIG
 
 # If not requests we should exit because the
 # daemon cannot be in a good shape at all
