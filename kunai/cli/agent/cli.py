@@ -161,6 +161,7 @@ def do_info(show_logs):
     pid = d.get('pid')
     name = d.get('name')
     port = d.get('port')
+    addr = d.get('addr')
     nb_threads = d.get('threads')['nb_threads']
     httpservers = d.get('httpservers', {'internal':None, 'external':None})
     socket_path = d.get('socket')
@@ -172,7 +173,7 @@ def do_info(show_logs):
     _docker = d.get('docker')
     collectors = d.get('collectors')
 
-    e = [('name', name), ('uuid',_uuid), ('version', version), ('pid', pid), ('port',port), ('socket',socket_path), ('threads', nb_threads)]
+    e = [('name', name), ('uuid',_uuid), ('version', version), ('pid', pid), ('port',port), ('addr',addr), ('socket',socket_path), ('threads', nb_threads)]
 
     # Normal agent information
     print_info_title('Kunai Daemon')

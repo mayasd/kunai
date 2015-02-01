@@ -54,7 +54,7 @@ from kunai.kv import KVBackend
 from kunai.dnsquery import DNSQuery
 from kunai.ts import TSListener
 from kunai.wsocket import WebSocketBackend
-from kunai.util import make_dir, copy_dir
+from kunai.util import make_dir, copy_dir, get_public_address
 from kunai.threadmgr import threader
 from kunai.perfdata import PerfDatas
 from kunai.now import NOW
@@ -146,7 +146,7 @@ class Cluster(object):
         
         # By default, we are alive :)
         self.state = 'alive'
-        self.addr = socket.gethostname() #'0.0.0.0'
+        self.addr = get_public_address()#socket.gethostname()
         self.listening_addr = '0.0.0.0'
         
         #self.broadcasts = []
@@ -1194,7 +1194,7 @@ class Cluster(object):
         def get_info():
             response.content_type = 'application/json'
             r = {'logs':logger.get_errors(), 'pid':os.getpid(), 'name':self.name,
-                 'port':self.port, 'socket':self.socket_path,
+                 'port':self.port, 'addr':self.addr, 'socket':self.socket_path,
                  'uuid':self.uuid, 'graphite':self.graphite,
                  'statsd':self.statsd, 'websocket':self.websocket,
                  'dns':self.dns, 'threads':threader.get_info(),

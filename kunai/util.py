@@ -1,6 +1,13 @@
 import os
+import sys
 import shutil
 import glob
+
+# for ip addr
+import socket
+import fcntl
+import struct
+
 
 def make_dir(path):
    if not os.path.isdir(path):
@@ -38,3 +45,37 @@ def lower_dict(d):
    for (k,v) in d.iteritems():
       r[k.lower()] = v
    return r
+
+
+
+# Only works in linux
+def get_public_address():
+   # If I am in the DNS or in my /etc/hosts, I win
+   try:
+      addr = socket.gethostbyname(socket.gethostname())
+      if addr != '127.0.0.1':
+         return addr
+   except Exception, exp:
+      pass
+   
+   if sys.platform == 'linux2':
+      for prefi in ['bond', 'eth']:
+         for i in xrange(0, 10):
+            ifname = '%s%d' % (prefi, i)
+            try:
+               addr = get_ip_address(ifname)
+               return addr
+            except IOError: # no such interface
+               pass
+   return None
+
+
+# Get the ip address in a linux system
+def get_ip_address(ifname):
+   s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+   return socket.inet_ntoa(fcntl.ioctl(
+      s.fileno(),
+      0x8915,  # SIOCGIFADDR
+      struct.pack('256s', ifname[:15])
+   )[20:24])
+        
